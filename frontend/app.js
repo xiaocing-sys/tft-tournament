@@ -4,6 +4,13 @@ const API_BASE = (location.hostname === 'localhost' || location.port === '3001')
     ? 'http://localhost:3001'   // 本地开发：后端在 3001 端口
     : '';                        // Netlify：同源访问 /api/...
 
+// 辅助函数：修复截图 URL（兼容本地路径和远程 URL）
+function fixScreenshotUrl(path) {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;  // 完整 URL（SM.MS）
+    return API_BASE + path;  // 相对路径（本地开发）
+}
+
 // ==================== Tab 切换 ====================
 function switchTab(tabName) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
@@ -578,7 +585,7 @@ function renderGroupCard(g, medalColors) {
                                         title="点击验证截图">
                                         ${gp.verified ? '✓ 已验证' : '⚠️ 未验证'}
                                     </button>
-                                    <a href="${gp.screenshot_path}" target="_blank" class="text-blue-400 text-xs bg-blue-900/40 px-2 py-0.5 rounded hover:opacity-80 transition-opacity" title="查看截图">📷</a>
+                                    <a href="${fixScreenshotUrl(gp.screenshot_path)}" target="_blank" class="text-blue-400 text-xs bg-blue-900/40 px-2 py-0.5 rounded hover:opacity-80 transition-opacity" title="查看截图">📷</a>
                                 ` : ''}
                                 ${gp.placement && gp.placement <= 4 ? '<span class="text-yellow-400 text-xs">⬆ 晋级</span>' : ''}
                             </div>
@@ -766,6 +773,22 @@ function handleDrop(e) {
         reader.readAsDataURL(file);
     }
 }
+// ==================== SM.MS 图床上传 ====================
+async function uploadToSmMs(file) {
+    const formData = new FormData();
+    formData.append('smfile', file);
+    const res = await fetch('https://sm.ms/api/v2/upload', {
+        method: 'POST',
+        body: formData
+    });
+    const data = await res.json();
+    if (data.success || data.code === 'image_repeated') {
+        return data.data.url || data.data;
+    } else {
+        throw new Error(data.message || '上传图片失败');
+    }
+}
+
 // ==================== 战绩上传 ====================
 async function submitResult() {
     const region = document.getElementById('upload-region-select')?.value;
@@ -778,18 +801,34 @@ async function submitResult() {
     const btn = document.getElementById('upload-btn');
     if (btn) { btn.disabled = true; btn.textContent = '提交中...'; }
     try {
-        const formData = new FormData();
-        formData.append('group_player_id', groupPlayerId);
-        formData.append('placement', placement);
-        if (selectedFile) formData.append('screenshot', selectedFile);
+        // 1. 上传截图到 SM.MS 图床
+        let screenshotUrl = null;
+        if (selectedFile) {
+            showToast('正在上传截图到图床...', 'ℹ️');
+            try {
+                screenshotUrl = await uploadToSmMs(selectedFile);
+                showToast('截图上传成功！', '✅');
+            } catch (uploadErr) {
+                console.error('[SM.MS] 上传失败:', uploadErr);
+                // 上传失败时不阻断提交流程，允许无截图提交
+                showToast('截图上传失败，将提交无截图战绩', '⚠️');
+            }
+        }
+
+        // 2. 提交战绩（带截图 URL）
         const res = await fetch(`${API_BASE}/api/results/upload`, {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                group_player_id: groupPlayerId,
+                placement: placement,
+                screenshot_url: screenshotUrl
+            })
         });
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || '提交失败');
         showToast('🎉 战绩提交成功！正在验证截图...', '✅');
-        if (selectedFile) {
+        if (screenshotUrl) {
             await verifyScreenshot(groupPlayerId);
         }
         selectedFile = null;
@@ -1301,7 +1340,7 @@ async function loadPendingReviews() {
                     <div class="flex items-center gap-3 mb-2">
                         <span class="text-xs text-gray-400">报名排名: <span class="text-yellow-400 font-bold">第${row.placement || '?'}名</span></span>
                     </div>
-                    ${row.screenshot_path ? `<div class="mb-2"><img src="${API_BASE}${row.screenshot_path}" class="max-h-40 rounded border border-gray-700 cursor-pointer hover:border-yellow-500 transition-colors" onclick="window.open(this.src)"></div>` : '<div class="text-xs text-red-400 mb-2">无截图</div>'}
+                    ${row.screenshot_path ? `<div class="mb-2"><img src="${fixScreenshotUrl(row.screenshot_path)}" class="max-h-40 rounded border border-gray-700 cursor-pointer hover:border-yellow-500 transition-colors" onclick="window.open(this.src)"></div>` : '<div class="text-xs text-red-400 mb-2">无截图</div>'}
                     <div class="flex gap-2">
                         <button onclick="reviewResult(${row.group_player_id}, 'approve')" class="flex-1 px-3 py-1.5 bg-green-900/50 text-green-300 rounded hover:bg-green-800/50 transition-colors text-xs font-bold">✅ 通过</button>
                         <button onclick="reviewResult(${row.group_player_id}, 'reject')" class="flex-1 px-3 py-1.5 bg-red-900/50 text-red-300 rounded hover:bg-red-800/50 transition-colors text-xs font-bold">❌ 拒绝</button>

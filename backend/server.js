@@ -1,8 +1,9 @@
 const path = require('path');
 const express = require('express');
-const multer = require('multer');
 const cors = require('cors');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const Tesseract = require('tesseract.js');
 const Jimp = require('jimp');
 
@@ -701,20 +702,11 @@ app.get('/api/rounds', (req, res) => {
     });
 });
 
-// ==================== 战绩上传（multer 处理文件）====================
+// ==================== 战绩上传（接受截图 URL）====================
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-    filename: (req, file, cb) => {
-        const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, unique + path.extname(file.originalname));
-    }
-});
-const uploadMiddleware = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
-
-// 上传战绩（包含截图文件）
-app.post('/api/results/upload', uploadMiddleware.single('screenshot'), (req, res) => {
-    const { group_player_id, placement } = req.body;
+// 上传战绩（包含截图 URL）
+app.post('/api/results/upload', (req, res) => {
+    const { group_player_id, placement, screenshot_url } = req.body;
     if (!group_player_id || !placement) {
         return res.status(400).json({ error: '缺少必要参数（group_player_id 和 placement）' });
     }
@@ -726,7 +718,7 @@ app.post('/api/results/upload', uploadMiddleware.single('screenshot'), (req, res
             return res.status(400).json({ error: '每轮次只能提交一次，您已经提交过了' });
         }
 
-        const screenshotPath = req.file ? `/uploads/${req.file.filename}` : null;
+        const screenshotPath = screenshot_url || null;
 
         db.run(
             `UPDATE group_players
@@ -786,13 +778,13 @@ app.post('/api/results/verify', async (req, res) => {
                 return res.status(400).json({ error: '未找到截图，请先上传' });
             }
 
-            const fullPath = path.join(__dirname, row.screenshot_path);
+            const imageUrl = row.screenshot_path; // 现在是完整 URL
             const expectedNickname = row.game_nickname || '';
             const expectedPlacement = row.placement;
 
             try {
                 // 2. 使用 Tesseract 识别截图文字（带图像预处理）
-                console.log('[OCR] 开始识别截图:', fullPath);
+                console.log('[OCR] 开始识别截图:', imageUrl);
                 console.log('[OCR] 预期信息: 昵称=' + expectedNickname + ', 排名=' + expectedPlacement);
 
                 // 2.1 多策略OCR识别（区域裁剪+多尺度，大幅提高昵称识别率）
@@ -801,7 +793,7 @@ app.post('/api/results/verify', async (req, res) => {
                 // 策略A: 整图 + 预处理（用于捕获"第X名"等大字和完整排名列表）
                 console.log('[OCR] 策略A: 整图预处理识别');
                 try {
-                    const image = await Jimp.read(fullPath);
+                    const image = await Jimp.read(imageUrl);
                     const origW = image.width;
                     const origH = image.height;
                     await image.resize({ w: origW * 2, h: origH * 2 });
@@ -826,7 +818,7 @@ app.post('/api/results/verify', async (req, res) => {
                 // 策略B: 裁剪排名列表区域（左侧38%，专注排名+昵称列，排除羁绊图标干扰）
                 console.log('[OCR] 策略B: 裁剪排名列表区域识别');
                 try {
-                    const img = await Jimp.read(fullPath);
+                    const img = await Jimp.read(imageUrl);
                     const iw = img.width;
                     const ih = img.height;
                     // 裁剪左侧38%区域，从表头下方开始到列表底部
@@ -863,7 +855,7 @@ app.post('/api/results/verify', async (req, res) => {
                 } else {
                     // 所有策略都失败，fallback到默认方式
                     console.log('[OCR] 所有策略失败，fallback到默认方式');
-                    const { data: { text: fallbackText } } = await Tesseract.recognize(fullPath, 'eng+chi_sim', {
+                    const { data: { text: fallbackText } } = await Tesseract.recognize(imageUrl, 'eng+chi_sim', {
                         logger: m => console.log('[OCR]', m)
                     });
                     text = fallbackText;
@@ -1604,15 +1596,19 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`\n🎮 金铲铲水友赛平台后端已启动！`);
-    console.log(`   API 地址: http://localhost:${PORT}/api`);
-    console.log(`   前端地址: http://localhost:3001 (静态文件)`);
-    console.log(`   管理上传: http://localhost:${PORT}/uploads/\n`);
-});
+// ==================== 启动服务器（兼容本地和 Netlify）====================
 
-
-// Netlify Functions 导出
+// Netlify Functions 导出（必须在 listen 之前）
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports.app = app;
+    module.exports = app;  // 导出 app，供 netlify/functions/api.js 使用
+}
+
+// 本地开发时启动服务器
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`\n🎮 金铲铲水友赛平台后端已启动！`);
+        console.log(`   API 地址: http://localhost:${PORT}/api`);
+        console.log(`   前端地址: http://localhost:3001 (静态文件)`);
+        console.log(`   管理上传: http://localhost:${PORT}/uploads/\n`);
+    });
 }
