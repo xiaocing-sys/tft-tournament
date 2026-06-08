@@ -4,8 +4,77 @@ const cors = require('cors');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
-const Tesseract = require('tesseract.js');
-const Jimp = require('jimp');
+
+// ==================== 百度 OCR 配置 ====================
+const BAIDU_OCR_API_KEY = 'k5u7nYVQeTd6dhErvx4zPFiK';
+const BAIDU_OCR_SECRET_KEY = 'Fn6LfUcuk6uIGS4F0yZFjESoKgWOy2jh';
+let baiduAccessToken = null;
+let baiduTokenExpireTime = 0;
+
+// 获取百度 OCR access token（带缓存）
+async function getBaiduAccessToken() {
+    const now = Date.now();
+    if (baiduAccessToken && now < baiduTokenExpireTime) {
+        return baiduAccessToken;
+    }
+    return new Promise((resolve, reject) => {
+        const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${BAIDU_OCR_API_KEY}&client_secret=${BAIDU_OCR_SECRET_KEY}`;
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.access_token) {
+                        baiduAccessToken = json.access_token;
+                        baiduTokenExpireTime = now + (json.expires_in - 86400) * 1000; // 提前1天过期
+                        resolve(baiduAccessToken);
+                    } else {
+                        reject(new Error('获取百度 OCR token 失败: ' + data));
+                    }
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
+// 调用百度 OCR API（仅识别数字）
+async function callBaiduOCR(imageUrl) {
+    const token = await getBaiduAccessToken();
+    return new Promise((resolve, reject) => {
+        const postData = `url=${encodeURIComponent(imageUrl)}`;
+        const options = {
+            hostname: 'aip.baidubce.com',
+            path: `/rest/2.0/ocr/v1/accurate_basic?access_token=${token}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.words_result) {
+                        resolve(json.words_result.map(w => w.words).join('\n'));
+                    } else {
+                        reject(new Error('百度 OCR 识别失败: ' + JSON.stringify(json)));
+                    }
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+        req.on('error', reject);
+        req.write(postData);
+        req.end();
+    });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -760,7 +829,7 @@ app.post('/api/results/submit-placement', (req, res) => {
 
 
 // ==================== OCR 截图验证 ====================
-// 验证截图中的昵称和排名（不验证游戏ID，OCR识别不准）
+// 验证截图中的排名（使用百度 OCR，仅验证名次）
 app.post('/api/results/verify', async (req, res) => {
     const { group_player_id } = req.body;
     if (!group_player_id) {
@@ -778,397 +847,71 @@ app.post('/api/results/verify', async (req, res) => {
                 return res.status(400).json({ error: '未找到截图，请先上传' });
             }
 
-            const imageUrl = row.screenshot_path; // 现在是完整 URL
-            const expectedNickname = row.game_nickname || '';
+            const imageUrl = row.screenshot_path;
             const expectedPlacement = row.placement;
 
             try {
-                // 2. 使用 Tesseract 识别截图文字（带图像预处理）
-                console.log('[OCR] 开始识别截图:', imageUrl);
-                console.log('[OCR] 预期信息: 昵称=' + expectedNickname + ', 排名=' + expectedPlacement);
+                // 2. 调用百度 OCR 识别截图
+                console.log('[百度OCR] 开始识别截图:', imageUrl);
+                const text = await callBaiduOCR(imageUrl);
+                console.log('[百度OCR] 识别结果:', text.substring(0, 200));
 
-                // 2.1 多策略OCR识别（区域裁剪+多尺度，大幅提高昵称识别率）
-                let texts = []; // 收集所有策略的识别结果
-                
-                // 策略A: 整图 + 预处理（用于捕获"第X名"等大字和完整排名列表）
-                console.log('[OCR] 策略A: 整图预处理识别');
-                try {
-                    const image = await Jimp.read(imageUrl);
-                    const origW = image.width;
-                    const origH = image.height;
-                    await image.resize({ w: origW * 2, h: origH * 2 });
-                    image.greyscale();
-                    image.contrast(0.3);
-                    const fullBuffer = await image.getBuffer('image/png');
-                    
-                    const workerA = await Tesseract.createWorker('eng+chi_sim');
-                    await workerA.setParameters({
-                        tessedit_pageseg_mode: '6',
-                        tessedit_ocr_engine_mode: '1',
-                        preserve_interword_spaces: '1',
-                    });
-                    const retA = await workerA.recognize(fullBuffer);
-                    texts.push(retA.data.text);
-                    await workerA.terminate();
-                    console.log('[OCR] 策略A完成');
-                } catch (preErr) {
-                    console.log('[OCR] 策略A失败:', preErr.message);
-                }
+                // 3. 从识别结果中提取名次（查找 1-8 的数字）
+                const numbers = text.match(/\d+/g) || [];
+                const placements = numbers.map(n => parseInt(n, 10)).filter(n => n >= 1 && n <= 8);
+                const uniquePlacements = [...new Set(placements)];
 
-                // 策略B: 裁剪排名列表区域（左侧38%，专注排名+昵称列，排除羁绊图标干扰）
-                console.log('[OCR] 策略B: 裁剪排名列表区域识别');
-                try {
-                    const img = await Jimp.read(imageUrl);
-                    const iw = img.width;
-                    const ih = img.height;
-                    // 裁剪左侧38%区域，从表头下方开始到列表底部
-                    const listArea = img.clone().crop({ 
-                        x: 0, 
-                        y: Math.floor(ih * 0.18), 
-                        w: Math.floor(iw * 0.38), 
-                        h: Math.floor(ih * 0.62) 
-                    });
-                    await listArea.resize({ w: listArea.width * 3, h: listArea.height * 3 });
-                    listArea.greyscale();
-                    listArea.contrast(0.4);
-                    const listBuffer = await listArea.getBuffer('image/png');
-                    
-                    const workerB = await Tesseract.createWorker('eng+chi_sim');
-                    await workerB.setParameters({
-                        tessedit_pageseg_mode: '6',
-                        tessedit_ocr_engine_mode: '1',
-                        preserve_interword_spaces: '1',
-                    });
-                    const retB = await workerB.recognize(listBuffer);
-                    texts.push(retB.data.text);
-                    await workerB.terminate();
-                    console.log('[OCR] 策略B完成');
-                } catch (cropErr) {
-                    console.log('[OCR] 策略B失败:', cropErr.message);
-                }
+                console.log('[百度OCR] 提取的名次:', uniquePlacements);
 
-                // 2.2 合并所有策略的识别结果
-                let text = '';
-                if (texts.length > 0) {
-                    text = texts.join('\n');
-                    console.log('[OCR] 多策略合并完成，策略数=' + texts.length + ', 总长度=' + text.length);
-                } else {
-                    // 所有策略都失败，fallback到默认方式
-                    console.log('[OCR] 所有策略失败，fallback到默认方式');
-                    const { data: { text: fallbackText } } = await Tesseract.recognize(imageUrl, 'eng+chi_sim', {
-                        logger: m => console.log('[OCR]', m)
-                    });
-                    text = fallbackText;
-                }
-                console.log('[OCR] 识别结果:', text.substring(0, 500) + (text.length > 500 ? '...' : ''));
-                const cleanText = text.replace(/\s/g, '');
-
-                // ========== 辅助函数：中文数字转阿拉伯数字 ==========
-                const cnNumMap = {
-                    '一': 1, '二': 2, '三': 3, '四': 4,
-                    '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
-                    '1': 1, '2': 2, '3': 3, '4': 4,
-                    '5': 5, '6': 6, '7': 7, '8': 8, '9': 9
-                };
-
-                // ========== 3. 排名验证（多维度，优先级从高到低）==========
-                let placementFound = false;
-                let placementDetails = [];
-                let foundPlacementNumbers = []; // 记录找到的所有排名数字
-
-                if (expectedPlacement) {
-                    const expStr = expectedPlacement.toString();
-
-                    // 3.1 匹配顶部 "第X名" / "第 X 名"（阿拉伯数字）
-                    const topPatternsAr = [
-                        new RegExp('第\\s*' + expStr + '\\s*名'),
-                        new RegExp('第' + expStr + '名'),
-                    ];
-                    if (topPatternsAr.some(p => p.test(text))) {
-                        placementFound = true;
-                        placementDetails.push('顶部名次(阿拉伯数字)');
-                    }
-
-                    // 3.2 匹配 "第X名"（中文数字，如"第二名"）
-                    const cnNumKeys = Object.keys(cnNumMap).filter(k => cnNumMap[k] == expectedPlacement);
-                    for (const cnKey of cnNumKeys) {
-                        if (text.indexOf('第' + cnKey + '名') !== -1 ||
-                            text.indexOf('第 ' + cnKey + ' 名') !== -1) {
-                            placementFound = true;
-                            placementDetails.push('顶部名次(中文数字:' + cnKey + ')');
-                            break;
-                        }
-                    }
-
-                    // 3.3 匹配左侧排名列（行首或独立出现的 1-8 数字）
-                    if (!placementFound) {
-                        const rankPatterns = [
-                            new RegExp('(^|[\\n\\r])\\s*' + expStr + '\\s+(?=[^\\d])'),
-                            new RegExp('排名[\\s:：]*' + expStr),
-                            new RegExp('Rank[\\s:：]*' + expStr, 'i'),
-                            new RegExp('#\\s*' + expStr),
-                        ];
-                        if (rankPatterns.some(p => p.test(text))) {
-                            placementFound = true;
-                            placementDetails.push('排名列匹配');
-                        }
-                    }
-
-                    // 3.4 检查纯数字中是否包含预期排名（作为兜底）
-                    // 修复：/\d+/g → /\d+/g（注意这里用字符串构造正则，\\d 会被解析为 \d）
-                    const allNumbers = text.match(/\d+/g) || [];
-                    if (allNumbers.includes(expStr)) {
-                        if (!placementFound) {
-                            placementFound = true;
-                            placementDetails.push('数字匹配');
-                        } else {
-                            placementDetails.push('数字匹配(辅助)');
-                        }
-                    }
-                }
-
-                // 3.5 完整性校验：提取所有 1-8 的数字，检查是否包含完整排名列表
-                const allNumbers = text.match(/\d+/g) || [];
-                const uniqueNumbers = [...new Set(allNumbers.map(n => parseInt(n, 10)).filter(n => n >= 1 && n <= 8))];
-                const hasFullRanking = uniqueNumbers.length >= 6;
-                if (hasFullRanking) {
-                    placementDetails.push('完整排名(' + uniqueNumbers.sort((a, b) => a - b).join(',') + ')');
-                }
-
-                // ========== 4. 昵称验证（v3: 分段匹配 + 忽略特殊符号 + 编辑距离容错）==========
-                let nicknameFound = false;
-                let nicknameDetails = [];
-                let nicknameScore = 0;
-
-                // 辅助函数：Levenshtein编辑距离（用于容错单个字符误识别）
-                function levenshtein(a, b) {
-                    const matrix = [];
-                    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-                    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-                    for (let i = 1; i <= b.length; i++) {
-                        for (let j = 1; j <= a.length; j++) {
-                            matrix[i][j] = b.charAt(i - 1) === a.charAt(j - 1)
-                                ? matrix[i - 1][j - 1]
-                                : Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
-                        }
-                    }
-                    return matrix[b.length][a.length];
-                }
-
-                // 辅助函数：从文本中提取中文和英文
-                function extractSegments(str) {
-                    const cn = str.match(/[\u4e00-\u9fa5]/g) || [];
-                    const en = str.match(/[a-zA-Z]+/g) || [];
-                    const alnum = str.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
-                    return { cn: cn.join(''), en: en.join(' '), alnum: alnum };
-                }
-
-                // 辅助函数：计算两段文本的匹配率（基于编辑距离）
-                function similarity(a, b) {
-                    if (!a || !b) return 0;
-                    const dist = levenshtein(a, b);
-                    const maxLen = Math.max(a.length, b.length);
-                    return maxLen > 0 ? Math.round((1 - dist / maxLen) * 100) : 100;
-                }
-
-                if (expectedNickname) {
-                    const lowerText = text.toLowerCase();
-                    const lowerClean = cleanText.toLowerCase();
-                    const lowerNick = expectedNickname.toLowerCase();
-
-                    // === 4.1 精确匹配 ===
-                    if (lowerText.indexOf(lowerNick) !== -1) {
-                        nicknameFound = true;
-                        nicknameDetails.push('精确匹配');
-                        nicknameScore = 100;
-                    }
-
-                    // === 4.2 去除特殊符号后匹配（萌名满贯o.o → 萌名满贯）===
-                    if (!nicknameFound) {
-                        const nickAlnum = lowerNick.replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
-                        const textAlnum = lowerText.replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
-                        if (nickAlnum.length >= 2 && textAlnum.indexOf(nickAlnum) !== -1) {
-                            nicknameFound = true;
-                            nicknameDetails.push('去符号匹配');
-                            nicknameScore = 92;
-                        }
-                    }
-
-                    // === 4.3 分段匹配：中文/英文分别匹配（核心优化）===
-                    if (!nicknameFound) {
-                        const nickSeg = extractSegments(expectedNickname);
-                        const textSeg = extractSegments(text);
-
-                        let cnScore = 0, enScore = 0;
-
-                        // 中文部分匹配
-                        if (nickSeg.cn.length > 0) {
-                            if (textSeg.cn.indexOf(nickSeg.cn) !== -1) {
-                                cnScore = 100; // 完整包含
-                            } else {
-                                // 基于编辑距离的相似度
-                                cnScore = similarity(nickSeg.cn, textSeg.cn);
-                            }
-                        } else {
-                            cnScore = 100; // 无中文部分，默认满分
-                        }
-
-                        // 英文部分匹配
-                        if (nickSeg.en.length > 0) {
-                            const nickEnLower = nickSeg.en.toLowerCase().replace(/\s/g, '');
-                            const textEnLower = textSeg.en.toLowerCase().replace(/\s/g, '');
-                            if (textEnLower.indexOf(nickEnLower) !== -1 || nickEnLower.indexOf(textEnLower) !== -1) {
-                                enScore = 100;
-                            } else {
-                                enScore = similarity(nickEnLower, textEnLower);
-                            }
-                        } else {
-                            enScore = 100;
-                        }
-
-                        // 判断逻辑：
-                        // - 中英文混合昵称：中文≥50% 或 英文完全匹配（≥80%）
-                        // - 纯中文：≥60% 或 编辑距离≤1
-                        // - 纯英文：≥70%
-                        const hasCn = nickSeg.cn.length > 0;
-                        const hasEn = nickSeg.en.length > 0;
-
-                        if (hasCn && hasEn) {
-                            // 中英文混合（如 Little辞、萌名满贯o.o）
-                            if (cnScore >= 50 || enScore >= 80) {
-                                nicknameFound = true;
-                                nicknameDetails.push('分段匹配(中文' + cnScore + '%/英文' + enScore + '%)');
-                                nicknameScore = Math.max(cnScore, enScore);
-                            }
-                        } else if (hasCn) {
-                            // 纯中文（如 甜甜圈真好吃呢）
-                            if (cnScore >= 60) {
-                                nicknameFound = true;
-                                nicknameDetails.push('中文匹配(' + cnScore + '%)');
-                                nicknameScore = cnScore;
-                            }
-                        } else if (hasEn) {
-                            // 纯英文
-                            if (enScore >= 70) {
-                                nicknameFound = true;
-                                nicknameDetails.push('英文匹配(' + enScore + '%)');
-                                nicknameScore = enScore;
-                            }
-                        }
-                    }
-
-                    // === 4.4 编辑距离兜底（处理单字误识别，如"洛挽霞"→"洛挽起"）===
-                    if (!nicknameFound && expectedNickname.length >= 3) {
-                        // 从OCR文本中找出与期望昵称最相似的子串
-                        const nickAlnum = lowerNick.replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
-                        const textAlnum = lowerText.replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
-                        if (nickAlnum.length >= 2 && textAlnum.length >= nickAlnum.length) {
-                            let bestDist = Infinity;
-                            // 滑动窗口找最相似的子串
-                            for (let i = 0; i <= textAlnum.length - nickAlnum.length; i++) {
-                                const window = textAlnum.substring(i, i + nickAlnum.length);
-                                const dist = levenshtein(nickAlnum, window);
-                                if (dist < bestDist) bestDist = dist;
-                            }
-                            // 允许1-2个字符的误差（根据昵称长度动态调整）
-                            const allowError = nickAlnum.length <= 4 ? 1 : 2;
-                            if (bestDist <= allowError) {
-                                nicknameFound = true;
-                                nicknameDetails.push('模糊匹配(编辑距离' + bestDist + ')');
-                                nicknameScore = Math.round((1 - bestDist / nickAlnum.length) * 70);
-                            }
-                        }
-                    }
-
-                    // === 4.5 OCR常见字符混淆匹配 ===
-                    if (!nicknameFound) {
-                        const confusedText = lowerClean
-                            .replace(/0/g, 'o')
-                            .replace(/1/g, 'l')
-                            .replace(/5/g, 's')
-                            .replace(/8/g, 'b');
-                        const confusedNick = lowerNick
-                            .replace(/0/g, 'o')
-                            .replace(/1/g, 'l')
-                            .replace(/5/g, 's')
-                            .replace(/8/g, 'b');
-                        if (confusedText.indexOf(confusedNick) !== -1) {
-                            nicknameFound = true;
-                            nicknameDetails.push('混淆字符匹配');
-                            nicknameScore = 65;
-                        }
-                    }
-                }
-
-                // ========== 5. 综合验证结果 ==========
-                const nicknameVerified = nicknameFound;
-                const placementVerified = expectedPlacement ? placementFound : true;
-
+                // 4. 验证名次
                 let verified = false;
-                let verifyMode = '';
+                let reason = '';
 
-                // 5.1 标准验证：昵称+排名都匹配
-                if (nicknameVerified && placementVerified) {
+                if (!expectedPlacement) {
                     verified = true;
-                    verifyMode = '标准验证（昵称+排名）';
-                }
-                // 5.2 兜底验证：排名明确匹配 + 完整排名列表存在
-                else if (placementVerified && hasFullRanking) {
+                    reason = '无预期名次，跳过验证';
+                } else if (uniquePlacements.includes(parseInt(expectedPlacement, 10))) {
                     verified = true;
-                    verifyMode = '排名验证（排名匹配+完整排名列表）';
-                }
-                // 5.3 兜底验证：昵称匹配 + 完整排名列表
-                else if (nicknameVerified && hasFullRanking) {
-                    verified = true;
-                    verifyMode = '兜底验证（昵称+完整排名列表）';
-                }
-                // 5.4 弱验证：仅排名匹配（对于OCR识别困难的情况，降低门槛）
-                else if (placementVerified) {
-                    verified = true;
-                    verifyMode = '弱验证（仅排名匹配，建议管理员复核）';
+                    reason = '名次匹配（百度OCR识别到 ' + uniquePlacements.join(', ') + '）';
+                } else {
+                    verified = false;
+                    reason = '名次不匹配（预期: ' + expectedPlacement + ', OCR识别: ' + uniquePlacements.join(', ') + '）';
                 }
 
-                // 6. 如果验证通过，更新数据库
-                if (verified) {
-                    db.run('UPDATE group_players SET verified = 1, verified_at = CURRENT_TIMESTAMP WHERE id = ?',
-                        [group_player_id], (err) => {
-                            if (err) console.error('更新验证状态失败:', err);
+                // 5. 更新验证状态
+                const verifyStatus = verified ? 1 : 0;
+                db.run(
+                    'UPDATE group_players SET verified = ?, verify_info = ? WHERE id = ?',
+                    [verifyStatus, reason, group_player_id],
+                    function (err) {
+                        if (err) {
+                            console.error('[百度OCR] 更新验证状态失败:', err);
+                            return res.status(500).json({ error: err.message });
+                        }
+                        console.log('[百度OCR] 验证完成:', reason);
+                        res.json({
+                            success: true,
+                            verified: verified,
+                            reason: reason,
+                            ocr_text: text.substring(0, 500)
                         });
-                }
+                    }
+                );
 
-                // 7. 返回详细验证结果
-                const failReasons = [];
-                if (!nicknameVerified) failReasons.push('昵称未识别');
-                if (!placementVerified) failReasons.push('排名未识别');
-                if (!hasFullRanking) failReasons.push('未检测到完整排名列表');
-
-                res.json({
-                    success: true,
-                    verified,
-                    verify_mode: verifyMode,
-                    details: {
-                        nickname_verified: nicknameVerified,
-                        nickname_details: nicknameDetails,
-                        nickname_score: nicknameScore,
-                        placement_verified: placementVerified,
-                        placement_details: placementDetails,
-                        has_full_ranking: hasFullRanking,
-                        expected_nickname: expectedNickname,
-                        expected_placement: expectedPlacement,
-                        ocr_text: text,
-                        ocr_text_clean: cleanText
-                    },
-                    message: verified
-                        ? '✅ 验证通过！' + verifyMode
-                        : '⚠️ 验证未通过：' + failReasons.join('、') + '。请管理员手动审核。'
-                });
-
-            } catch (err) {
-                console.error('[OCR] 识别失败:', err);
-                res.status(500).json({
-                    error: 'OCR识别失败：' + err.message,
-                    tip: '请确保截图清晰，且包含游戏昵称和排名信息'
-                });
+            } catch (ocrErr) {
+                console.error('[百度OCR] 识别失败:', ocrErr);
+                db.run(
+                    'UPDATE group_players SET verified = 0, verify_info = ? WHERE id = ?',
+                    ['OCR识别失败: ' + ocrErr.message, group_player_id],
+                    () => {
+                        res.json({
+                            success: true,
+                            verified: false,
+                            reason: 'OCR识别失败，请管理员手动审核',
+                            error: ocrErr.message
+                        });
+                    }
+                );
             }
         }
     );
