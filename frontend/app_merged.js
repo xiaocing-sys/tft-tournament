@@ -1,0 +1,782 @@
+﻿// ==================== 配置 ====================
+const API_BASE = '';
+
+// ==================== Tab 切换 ====================
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('tab-active');
+        b.classList.add('tab-inactive');
+    });
+    const panel = document.getElementById(`panel-${tabName}`);
+    if (panel) panel.classList.remove('hidden');
+    const btn = document.getElementById(`tab-${tabName}`);
+    if (btn) {
+        btn.classList.remove('tab-inactive');
+        btn.classList.add('tab-active');
+    }
+    switch (tabName) {
+        case 'register': loadStats(); break;
+        case 'players': loadPlayers(); break;
+        case 'groups': loadRounds(); break;
+        case 'upload': loadGroupsForUpload(); break;
+        case 'bracket': loadBracket(); break;
+        case 'datasheet': loadDataSheet(); break;
+    }
+}
+
+function showToast(msg, icon = '✅') {
+    const toast = document.getElementById('toast');
+    const toastIcon = document.getElementById('toast-icon');
+    const toastText = document.getElementById('toast-text');
+    if (!toast || !toastIcon || !toastText) return;
+    toastText.textContent = msg;
+    toastIcon.textContent = icon;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+function showMsg(elementId, msg, type = 'info') {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.remove('hidden');
+    let cls = 'mt-4 text-center text-sm py-2 rounded-lg ';
+    if (type === 'error') cls += 'bg-red-900/50 text-red-300';
+    else if (type === 'success') cls += 'bg-green-900/50 text-green-300';
+    else cls += 'bg-blue-900/50 text-blue-300';
+    el.className = cls;
+    el.textContent = msg;
+    if (type !== 'info') setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+// ==================== 报名功能 ====================
+async function submitRegistration(e) {
+    e.preventDefault();
+    const btn = document.getElementById('register-btn');
+    btn.disabled = true;
+    btn.textContent = '提交中...';
+    const data = {
+        game_uid: document.getElementById('reg-uid').value.trim(),
+        game_nickname: document.getElementById('reg-nickname').value.trim(),
+        region: document.querySelector('input[name="region"]:checked')?.value,
+        contact: document.getElementById('reg-contact').value.trim()
+    };
+    if (!data.region) {
+        showMsg('register-msg', '请选择游戏大区', 'error');
+        btn.disabled = false; btn.textContent = '确认报名 🚀'; return;
+    }
+    try {
+        const res = await fetch(`${API_BASE}/api/register`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        showMsg('register-msg', '🎉 报名成功！祝你好运，弈士！', 'success');
+        document.getElementById('register-form').reset();
+        loadStats();
+    } catch (err) {
+        showMsg('register-msg', '❌ ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = '确认报名 🚀';
+}
+
+// ==================== 新版跳转式报名 ====================
+function goToRegisterForm(region) {
+    document.getElementById('reg-step-1').classList.add('hidden');
+    if (region === 'QQ') {
+        document.getElementById('reg-step-qq').classList.remove('hidden');
+    } else {
+        document.getElementById('reg-step-wechat').classList.remove('hidden');
+    }
+}
+
+function backToRegionSelect() {
+    document.getElementById('reg-step-qq').classList.add('hidden');
+    document.getElementById('reg-step-wechat').classList.add('hidden');
+    document.getElementById('reg-step-1').classList.remove('hidden');
+}
+
+async function submitRegistrationQQ(e) {
+    e.preventDefault();
+    await doRegister('QQ', {
+        contact: document.getElementById('reg-qq-contact').value.trim(),
+        game_nickname: document.getElementById('reg-qq-nickname').value.trim(),
+        game_uid: document.getElementById('reg-qq-uid').value.trim(),
+        award_qq: document.getElementById('reg-qq-award').value.trim()
+    }, 'register-btn-qq', 'register-msg-qq', 'register-form-qq');
+}
+
+async function submitRegistrationWeChat(e) {
+    e.preventDefault();
+    await doRegister('WeChat', {
+        contact: document.getElementById('reg-wx-contact').value.trim(),
+        game_nickname: document.getElementById('reg-wx-nickname').value.trim(),
+        game_uid: document.getElementById('reg-wx-uid').value.trim(),
+        award_qq: document.getElementById('reg-wx-award').value.trim()
+    }, 'register-btn-wx', 'register-msg-wx', 'register-form-wechat');
+}
+
+async function doRegister(region, fields, btnId, msgId, formId) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = '提交中...';
+    try {
+        const res = await fetch(`${API_BASE}/api/register`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...fields, region })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        showMsg(msgId, '🎉 报名成功！', 'success');
+        document.getElementById(formId).reset();
+        loadStats();
+        setTimeout(() => showQrModal(region), 600);
+    } catch (err) {
+        showMsg(msgId, '❌ ' + err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = originalText;
+}
+
+function showQrModal(region) {
+    const modal = document.getElementById('qr-modal');
+    const title = document.getElementById('qr-title');
+    const desc = document.getElementById('qr-desc');
+    if (region === 'QQ') {
+        title.innerHTML = '🐧 QQ区报名成功！';
+        desc.textContent = '请扫描下方二维码加入 QQ 玩家群，方便赛事交流和通知';
+    } else {
+        title.innerHTML = '💬 微信区报名成功！';
+        desc.textContent = '请扫描下方二维码加入 微信玩家群，方便赛事交流和通知';
+    }
+    modal.classList.remove('hidden');
+}
+
+function closeQrModal() {
+    document.getElementById('qr-modal').classList.add('hidden');
+    backToRegionSelect();
+}
+
+async function loadStats() {
+    try {
+        const res = await fetch(`${API_BASE}/api/players/count`);
+        const { count } = await res.json();
+        const el = document.getElementById('stat-total');
+        if (el) el.textContent = count;
+        const groups = Math.ceil(count / 8);
+        const el2 = document.getElementById('stat-groups');
+        if (el2) el2.textContent = groups;
+        const rounds = count > 8 ? Math.ceil(Math.log2(Math.ceil(count / 8))) + 1 : (count > 0 ? 1 : 0);
+        const el3 = document.getElementById('stat-rounds');
+        if (el3) el3.textContent = rounds || 0;
+    } catch (err) { console.error('加载统计失败:', err); }
+}
+
+// ==================== 参赛名单 ====================
+async function loadPlayers() {
+    const tbody = document.getElementById('players-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">加载中...</td></tr>';
+    try {
+        const res = await fetch(`${API_BASE}/api/players`);
+        const players = await res.json();
+        const countEl = document.getElementById('players-count');
+        if (countEl) countEl.textContent = `共 ${players.length} 人`;
+        if (players.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无报名玩家，快来报名吧！</td></tr>';
+            return;
+        }
+        tbody.innerHTML = players.map((p, i) => `
+            <tr class="hover:bg-gray-800/50 transition-colors">
+                <td class="px-4 py-3 text-gray-500 font-mono text-xs">${String(i + 1).padStart(3, '0')}</td>
+                <td class="px-4 py-3 font-mono text-yellow-400 font-semibold">${p.game_uid}</td>
+                <td class="px-4 py-3 text-white font-medium">${p.game_nickname}</td>
+                <td class="px-4 py-3">
+                    <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${p.region === 'QQ' ? 'bg-blue-900/60 text-blue-300' : 'bg-green-900/60 text-green-300'}">
+                        ${p.region === 'QQ' ? 'QQ区' : '微信区'}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-400 text-sm">${p.contact || '-'}</td>
+                <td class="px-4 py-3 text-yellow-300 text-sm font-mono">${p.award_qq || '-'}</td>
+                <td class="px-4 py-3 text-gray-600 text-xs">${new Date(p.registered_at).toLocaleString('zh-CN')}</td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-400">加载失败，请检查后端服务</td></tr>';
+    }
+}
+// ==================== 数据底表 ====================
+let allPlayersCache = [];
+
+async function loadDataSheet() {
+    const tbody = document.getElementById('ds-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">加载中...</td></tr>';
+    try {
+        const res = await fetch(`${API_BASE}/api/players`);
+        allPlayersCache = await res.json();
+        const total = allPlayersCache.length;
+        const qqCount = allPlayersCache.filter(p => p.region === 'QQ').length;
+        const wxCount = allPlayersCache.filter(p => p.region === 'WeChat').length;
+        const groups = Math.ceil(total / 8);
+        const elTotal = document.getElementById('ds-total');
+        if (elTotal) elTotal.textContent = total;
+        const elQQ = document.getElementById('ds-qq');
+        if (elQQ) elQQ.textContent = qqCount;
+        const elWX = document.getElementById('ds-wx');
+        if (elWX) elWX.textContent = wxCount;
+        const elGroups = document.getElementById('ds-groups');
+        if (elGroups) elGroups.textContent = groups;
+        renderDataSheet(allPlayersCache);
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-400">加载失败，请检查后端服务</td></tr>';
+        console.error('加载数据底表失败:', err);
+    }
+}
+
+function renderDataSheet(players) {
+    const tbody = document.getElementById('ds-tbody');
+    const countInfo = document.getElementById('ds-count-info');
+    if (!tbody) return;
+    if (players.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无匹配数据</td></tr>';
+        if (countInfo) countInfo.textContent = '共 0 条记录';
+        return;
+    }
+    tbody.innerHTML = players.map((p, i) => `
+        <tr class="hover:bg-gray-800/50 transition-colors">
+            <td class="px-4 py-3 text-gray-500 font-mono text-xs">${i + 1}</td>
+            <td class="px-4 py-3 font-mono text-yellow-400 font-semibold">${p.game_uid}</td>
+            <td class="px-4 py-3 text-white font-medium">${p.game_nickname}</td>
+            <td class="px-4 py-3">
+                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${p.region === 'QQ' ? 'bg-blue-900/60 text-blue-300' : 'bg-green-900/60 text-green-300'}">
+                    ${p.region === 'QQ' ? 'QQ区' : '微信区'}
+                </span>
+            </td>
+            <td class="px-4 py-3 text-gray-400 text-sm">${p.contact || '-'}</td>
+            <td class="px-4 py-3 text-yellow-300 text-sm font-mono">${p.award_qq || '-'}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">${new Date(p.registered_at).toLocaleString('zh-CN')}</td>
+        </tr>
+    `).join('');
+    if (countInfo) countInfo.textContent = `共 ${players.length} 条记录`;
+}
+
+function filterDataSheet() {
+    const search = document.getElementById('ds-search')?.value.trim().toLowerCase() || '';
+    const regionFilter = document.getElementById('ds-filter-region')?.value || '';
+    let filtered = allPlayersCache;
+    if (regionFilter) filtered = filtered.filter(p => p.region === regionFilter);
+    if (search) {
+        filtered = filtered.filter(p =>
+            (p.game_uid && p.game_uid.toLowerCase().includes(search)) ||
+            (p.game_nickname && p.game_nickname.toLowerCase().includes(search)) ||
+            (p.contact && p.contact.toLowerCase().includes(search)) ||
+            (p.award_qq && p.award_qq.toLowerCase().includes(search))
+        );
+    }
+    renderDataSheet(filtered);
+}
+
+function exportDataSheet() {
+    const search = document.getElementById('ds-search')?.value.trim().toLowerCase() || '';
+    const regionFilter = document.getElementById('ds-filter-region')?.value || '';
+    let filtered = allPlayersCache;
+    if (regionFilter) filtered = filtered.filter(p => p.region === regionFilter);
+    if (search) {
+        filtered = filtered.filter(p =>
+            (p.game_uid && p.game_uid.toLowerCase().includes(search)) ||
+            (p.game_nickname && p.game_nickname.toLowerCase().includes(search)) ||
+            (p.contact && p.contact.toLowerCase().includes(search)) ||
+            (p.award_qq && p.award_qq.toLowerCase().includes(search))
+        );
+    }
+    if (filtered.length === 0) { showToast('没有数据可导出', '⚠️'); return; }
+    let csv = '\uFEFF';
+    csv += '序号,游戏数字ID,游戏昵称,大区,联系方式,领奖QQ号,报名时间\n';
+    filtered.forEach((p, i) => {
+        const region = p.region === 'QQ' ? 'QQ区' : '微信区';
+        const row = [i + 1, p.game_uid, p.game_nickname, region, p.contact || '', p.award_qq || '', new Date(p.registered_at).toLocaleString('zh-CN')];
+        csv += row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const now = new Date().toISOString().slice(0, 10);
+    link.download = `金铲铲水友赛_报名数据_${now}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`✅ 已导出 ${filtered.length} 条记录`, '✅');
+}
+// ==================== 分组渲染辅助函数 ====================
+function renderGroupCard(g, medalColors) {
+    const groupRegion = (g.players && g.players.length > 0) ? g.players[0].region : null;
+    const borderColor = groupRegion === 'QQ' ? 'hover:border-blue-500/50 border-l-4 border-l-blue-500/60' : groupRegion === 'WeChat' ? 'hover:border-green-500/50 border-l-4 border-l-green-500/60' : 'hover:border-yellow-500/30';
+    const regionBadge = groupRegion === 'QQ'
+        ? '<span class="text-xs bg-blue-900/60 text-blue-300 px-2 py-0.5 rounded font-medium">🐧 QQ区</span>'
+        : groupRegion === 'WeChat'
+        ? '<span class="text-xs bg-green-900/60 text-green-300 px-2 py-0.5 rounded font-medium">💬 微信区</span>'
+        : '';
+    return `
+        <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-gray-700 overflow-hidden ${borderColor} transition-colors">
+            <div class="bg-gray-800/80 px-5 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="font-bold text-yellow-400 text-lg">🏆 第 ${g.group_number} 组</div>
+                    ${regionBadge}
+                </div>
+                <div class="text-xs text-gray-400 bg-gray-900 px-3 py-1 rounded-full">${g.player_count}/8 人</div>
+            </div>
+            <div class="divide-y divide-gray-800/50">
+                ${(g.players && g.players.length > 0) ? g.players.map((gp, idx) => {
+                    const rankCls = gp.placement && gp.placement <= 4 ? medalColors[(gp.placement || 1) - 1] : 'bg-gray-800/50 text-gray-500';
+                    return `
+                        <div class="px-5 py-3 flex items-center justify-between hover:bg-gray-800/30 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${gp.placement ? rankCls : 'bg-gray-800 text-gray-600'}">
+                                    ${gp.placement || '-'}
+                                </span>
+                                <div>
+                                    <div class="text-white font-medium">${gp.game_nickname}</div>
+                                    <div class="text-xs text-gray-500 font-mono">ID: ${gp.game_uid}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                ${gp.screenshot_path ? `
+                                    <button onclick="verifyPlayerScreenshot(${gp.id})" 
+                                        class="text-xs ${gp.verified ? 'text-green-400 bg-green-900/40' : 'text-yellow-400 bg-yellow-900/40'} px-2 py-0.5 rounded hover:opacity-80 transition-opacity"
+                                        title="点击验证截图">
+                                        ${gp.verified ? '✓ 已验证' : '⚠️ 未验证'}
+                                    </button>
+                                    <a href="${gp.screenshot_path}" target="_blank" class="text-blue-400 text-xs bg-blue-900/40 px-2 py-0.5 rounded hover:opacity-80 transition-opacity" title="查看截图">📷</a>
+                                ` : ''}
+                                ${gp.placement && gp.placement <= 4 ? '<span class="text-yellow-400 text-xs">⬆ 晋级</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('') : '<div class="px-5 py-8 text-center text-gray-500 text-sm">暂无玩家</div>'}
+            </div>
+        </div>
+    `;
+}
+
+// ==================== 分组对战 ====================
+let selectedFile = null;
+let selectedGroupPlayerId = null;
+
+async function loadRounds() {
+    try {
+        const res = await fetch(`${API_BASE}/api/rounds`);
+        const rounds = await res.json();
+        const select = document.getElementById('round-select');
+        if (!select) return;
+        if (rounds.length === 0) {
+            select.innerHTML = '<option>暂无轮次</option>';
+            const container = document.getElementById('groups-container');
+            if (container) container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">暂无分组，请先在管理后台点击"随机分组"</div>';
+            return;
+        }
+        select.innerHTML = rounds.map(r =>
+            `<option value="${r.id}">${r.name} 【${r.status === 'active' ? '🔥 进行中' : r.status === 'completed' ? '✅ 已结束' : '⏳ 待开始'}】</option>`
+        ).join('');
+        loadGroups();
+    } catch (err) { console.error('加载轮次失败:', err); }
+}
+
+async function loadGroups() {
+    const roundId = document.getElementById('round-select')?.value;
+    if (!roundId) return;
+    const container = document.getElementById('groups-container');
+    if (!container) return;
+    container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">加载中...</div>';
+    try {
+        const res = await fetch(`${API_BASE}/api/groups/${roundId}`);
+        const groups = await res.json();
+        if (groups.length === 0) {
+            container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">该轮次暂无分组数据</div>';
+            return;
+        }
+        const medalColors = ['bg-yellow-500/20 text-yellow-400', 'bg-gray-400/20 text-gray-300', 'bg-orange-600/20 text-orange-400', 'bg-blue-500/20 text-blue-400'];
+        const qqGroups = groups.filter(g => g.players && g.players.length > 0 && g.players[0].region === 'QQ');
+        const wxGroups = groups.filter(g => g.players && g.players.length > 0 && g.players[0].region === 'WeChat');
+        let html = '';
+        if (qqGroups.length > 0) {
+            html += `<div class="col-span-full mb-2"><span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-900/60 text-blue-300 border border-blue-500/30">🐧 QQ区 · 共${qqGroups.length}组</span></div>`;
+            html += qqGroups.map(g => renderGroupCard(g, medalColors)).join('');
+        }
+        if (wxGroups.length > 0) {
+            html += `<div class="col-span-full mb-2 mt-4"><span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-green-900/60 text-green-300 border border-green-500/30">💬 微信区 · 共${wxGroups.length}组</span></div>`;
+            html += wxGroups.map(g => renderGroupCard(g, medalColors)).join('');
+        }
+        container.innerHTML = html || '<div class="col-span-full text-center py-12 text-gray-500">该轮次暂无分组数据</div>';
+    } catch (err) {
+        container.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">加载失败</div>';
+    }
+}
+
+async function loadGroupsForUpload() {
+    try {
+        const res = await fetch(`${API_BASE}/api/rounds/current`);
+        const currentRound = await res.json();
+        if (!currentRound) {
+            const sel = document.getElementById('upload-group-select');
+            if (sel) sel.innerHTML = '<option>暂无进行中的轮次</option>';
+            return;
+        }
+        const gRes = await fetch(`${API_BASE}/api/groups/${currentRound.id}`);
+        const groups = await gRes.json();
+        const select = document.getElementById('upload-group-select');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- 请选择分组 --</option>' +
+            groups.map(g => {
+                const region = (g.players && g.players.length > 0) ? g.players[0].region : '';
+                const regionTag = region === 'QQ' ? '🐧' : region === 'WeChat' ? '💬' : '';
+                return `<option value="${g.id}">${regionTag} 第 ${g.group_number} 组 (${g.player_count}人)</option>`;
+            }).join('');
+        const pd = document.getElementById('placement-select');
+        if (pd) pd.innerHTML = [1,2,3,4,5,6,7,8].map(n => `
+            <button type="button" onclick="selectPlacement(${n})"
+                class="placement-btn border border-gray-700 rounded-lg py-2 text-sm hover:border-yellow-500 hover:text-yellow-400 transition-all duration-200"
+                data-placement="${n}">第${n}名</button>
+        `).join('');
+    } catch (err) { console.error('加载分组失败:', err); }
+}
+
+async function loadGroupPlayersForUpload() {
+    const groupId = document.getElementById('upload-group-select')?.value;
+    if (!groupId) return;
+    try {
+        const rRes = await fetch(`${API_BASE}/api/rounds/current`);
+        const currentRound = await rRes.json();
+        if (!currentRound) return;
+        const gRes = await fetch(`${API_BASE}/api/groups/${currentRound.id}`);
+        const groups = await gRes.json();
+        const group = groups.find(g => g.id == groupId);
+        if (!group || !group.players) return;
+        const select = document.getElementById('upload-player-select');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- 请选择你的名字 --</option>' +
+            group.players.map(p => `<option value="${p.id}" data-player-id="${p.player_id}">${p.game_nickname} (ID: ${p.game_uid})</option>`).join('');
+    } catch (err) { console.error('加载分组玩家失败:', err); }
+}
+
+function selectPlacement(n) {
+    document.querySelectorAll('.placement-btn').forEach(b => {
+        b.classList.remove('bg-yellow-500', 'text-black', 'border-yellow-500', 'font-bold');
+        b.classList.add('border-gray-700');
+    });
+    const btn = document.querySelector(`.placement-btn[data-placement="${n}"]`);
+    if (btn) {
+        btn.classList.add('bg-yellow-500', 'text-black', 'border-yellow-500', 'font-bold');
+        btn.classList.remove('border-gray-700');
+    }
+}
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('请选择图片文件', '⚠️'); return; }
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const img = document.getElementById('preview-img');
+        const container = document.getElementById('preview-container');
+        if (img) img.src = ev.target.result;
+        if (container) container.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = document.getElementById('preview-img');
+            const container = document.getElementById('preview-container');
+            if (img) img.src = ev.target.result;
+            if (container) container.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+}
+// ==================== 战绩上传 ====================
+async function submitResult() {
+    const groupPlayerId = document.getElementById('upload-player-select')?.value;
+    const placementBtn = document.querySelector('.placement-btn.bg-yellow-500');
+    if (!groupPlayerId) return showToast('请先选择你的名字', '⚠️');
+    if (!placementBtn) return showToast('请选择本局名次', '⚠️');
+    const placement = placementBtn.dataset.placement;
+    const btn = document.getElementById('upload-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '提交中...'; }
+    try {
+        const formData = new FormData();
+        formData.append('group_player_id', groupPlayerId);
+        formData.append('placement', placement);
+        if (selectedFile) formData.append('screenshot', selectedFile);
+        const res = await fetch(`${API_BASE}/api/results/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || '提交失败');
+        showToast('🎉 战绩提交成功！正在验证截图...', '✅');
+        if (selectedFile) {
+            await verifyScreenshot(groupPlayerId);
+        }
+        selectedFile = null;
+        const previewContainer = document.getElementById('preview-container');
+        if (previewContainer) previewContainer.classList.add('hidden');
+        const playerSelect = document.getElementById('upload-player-select');
+        if (playerSelect) playerSelect.value = '';
+        document.querySelectorAll('.placement-btn').forEach(b => {
+            b.classList.remove('bg-yellow-500', 'text-black', 'border-yellow-500', 'font-bold');
+        });
+    } catch (err) {
+        showToast('❌ ' + err.message, '❌');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '提交战绩'; }
+}
+
+// ==================== OCR 截图验证 ====================
+async function verifyScreenshot(groupPlayerId) {
+    try {
+        const res = await fetch(`${API_BASE}/api/results/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ group_player_id: groupPlayerId })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        if (result.verified) {
+            showToast('✅ OCR验证通过！截图中的游戏ID与报名ID匹配', '✅');
+        } else {
+            showToast('⚠️ OCR验证未通过，请管理员手动审核', '⚠️');
+        }
+        const msgEl = document.getElementById('upload-msg');
+        if (msgEl) {
+            msgEl.classList.remove('hidden');
+            msgEl.className = `mt-4 text-center text-sm py-2 rounded-lg ${result.verified ? 'bg-green-900/50 text-green-300' : 'bg-yellow-900/50 text-yellow-300'}`;
+            msgEl.innerHTML = `
+                <div class="font-bold mb-1">${result.verified ? '✅ 验证通过' : '⚠️ 验证未通过'}</div>
+                <div class="text-xs text-left mt-2 p-2 bg-gray-900/50 rounded">
+                    <div>期望ID: <span class="font-mono text-yellow-400">${result.expected_uid}</span></div>
+                    <div class="mt-1">OCR识别文本:</div>
+                    <div class="font-mono text-gray-400 break-all">${result.ocr_text || '(无)'}</div>
+                </div>
+            `;
+            setTimeout(() => msgEl.classList.add('hidden'), 10000);
+        }
+        setTimeout(() => loadGroups(), 1000);
+    } catch (err) {
+        console.error('OCR验证失败:', err);
+        showToast('⚠️ OCR验证失败: ' + err.message, '⚠️');
+    }
+}
+
+async function verifyPlayerScreenshot(groupPlayerId) {
+    showToast('正在验证截图...', '⏳');
+    await verifyScreenshot(groupPlayerId);
+}
+// ==================== 晋级榜 ====================
+async function loadBracket() {
+    const container = document.getElementById('bracket-container');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-8 text-gray-500">加载中...</div>';
+    try {
+        const rRes = await fetch(`${API_BASE}/api/rounds`);
+        const rounds = await rRes.json();
+        if (rounds.length === 0) {
+            container.innerHTML = '<div class="text-center py-16 text-gray-500 text-lg">🎮 暂无赛事数据，请先报名并生成分组</div>';
+            return;
+        }
+        const aRes = await fetch(`${API_BASE}/api/advancements`);
+        const allAdv = await aRes.json();
+        let html = '';
+        for (const round of rounds) {
+            const roundAdv = allAdv.filter(a => a.from_round_id == round.id);
+            const isCompleted = round.status === 'completed';
+            const isActive = round.status === 'active';
+            html += `
+                <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border ${isCompleted ? 'border-green-500/30' : isActive ? 'border-yellow-500/30' : 'border-gray-700'} overflow-hidden">
+                    <div class="px-6 py-4 flex items-center gap-3 ${isCompleted ? 'bg-green-900/20' : isActive ? 'bg-yellow-900/20' : 'bg-gray-800/50'}">
+                        <span class="text-2xl">${isCompleted ? '✅' : isActive ? '🔥' : '⏳'}</span>
+                        <h3 class="font-bold text-lg ${isCompleted ? 'text-green-400' : isActive ? 'text-yellow-400' : 'text-gray-400'}">${round.name}</h3>
+                        <span class="text-xs text-gray-500 ml-auto">${round.started_at ? new Date(round.started_at).toLocaleDateString('zh-CN') : ''}</span>
+                    </div>
+            `;
+            if (roundAdv.length > 0) {
+                html += `<div class="p-6"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">`;
+                const groupsInRound = [...new Set(roundAdv.map(a => a.from_group_id))];
+                for (const gid of groupsInRound) {
+                    const gpAdv = roundAdv.filter(a => a.from_group_id == gid);
+                    const groupNum = rounds.find(r => r.id == gid)?.group_number || '';
+                    html += `<div class="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50">
+                        <div class="text-xs text-yellow-400 mb-2 font-semibold">第${groupNum}组 晋级</div>`;
+                    for (const a of gpAdv) {
+                        html += `<div class="flex items-center gap-2 py-1.5">
+                            <span class="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400 font-bold text-xs">${a.placement}</span>
+                            <span class="text-sm text-white">${a.game_nickname}</span>
+                            <span class="text-xs text-gray-500 ml-auto">${a.region === 'QQ' ? 'QQ' : 'WX'}</span>
+                        </div>`;
+                    }
+                    html += `</div>`;
+                }
+                html += `</div></div>`;
+            } else {
+                html += `<div class="px-6 py-8 text-center text-gray-500 text-sm">该轮次暂无晋级数据，请先在分组中提交战绩并生成晋级名单</div>`;
+            }
+            html += `</div>`;
+        }
+        const uniqueAdvanced = [];
+        const seen = new Set();
+        for (const a of allAdv) {
+            if (!seen.has(a.player_id)) {
+                seen.add(a.player_id);
+                uniqueAdvanced.push(a);
+            }
+        }
+        if (uniqueAdvanced.length > 0 && uniqueAdvanced.length <= 8) {
+            html += `
+                <div class="bg-gradient-to-br from-yellow-900/30 via-orange-900/20 to-red-900/30 rounded-2xl border border-yellow-400/40 overflow-hidden glow-gold">
+                    <div class="bg-yellow-900/30 px-6 py-4 text-center">
+                        <h3 class="font-bold text-2xl text-yellow-400">🏆 最终八强 🏆</h3>
+                        <p class="text-yellow-200/60 text-sm mt-1">恭喜以下选手晋级最终八强！</p>
+                    </div>
+                    <div class="p-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        ${uniqueAdvanced.map((a, i) => `
+                            <div class="bg-gray-900/60 rounded-xl p-4 text-center border border-yellow-500/20 hover:border-yellow-500/50 transition-colors">
+                                <div class="text-3xl mb-2">${['🥇','🥈','🥉','4','5','6','7','8'][i] || (i+1)}</div>
+                                <div class="text-white font-bold">${a.game_nickname}</div>
+                                <div class="text-xs text-gray-500 font-mono mt-1">${a.game_uid}</div>
+                                <div class="mt-2"><span class="text-xs px-2 py-0.5 rounded ${a.region === 'QQ' ? 'bg-blue-900/50 text-blue-300' : 'bg-green-900/50 text-green-300'}">${a.region === 'QQ' ? 'QQ区' : '微信区'}</span></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<div class="text-center py-8 text-red-400">加载失败: ' + err.message + '</div>';
+        console.error(err);
+    }
+}
+
+// ==================== 管理后台 ====================
+async function toggleRegistration(open) {
+    try {
+        await fetch(`${API_BASE}/api/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'registration_open', value: open.toString() })
+        });
+        showToast(open ? '✅ 报名已开启，玩家可以报名了' : '⚠️ 报名已关闭', '✅');
+        updateHeaderStatus();
+    } catch (err) { showToast('操作失败', '❌'); }
+}
+
+async function generateGroups() {
+    const btn = document.getElementById('generate-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '🎲 随机分组中...'; }
+    try {
+        const res = await fetch(`${API_BASE}/api/groups/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ round_number: 1 })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        showToast(`🎉 随机分组完成！共 ${result.total_groups} 组，${result.total_players} 人`, '🎉');
+        showMsg('admin-msg', `分组成功！共 ${result.total_groups} 组，每组最多8人。可在"分组对战"标签页查看详情。`, 'success');
+    } catch (err) {
+        showMsg('admin-msg', '❌ ' + err.message, 'error');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '🎲 随机分组'; }
+}
+
+async function generateAdvancements() {
+    try {
+        const rRes = await fetch(`${API_BASE}/api/rounds/current`);
+        const currentRound = await rRes.json();
+        if (!currentRound) throw new Error('没有进行中的轮次，请先生成分组');
+        const gRes = await fetch(`${API_BASE}/api/groups/${currentRound.id}`);
+        const groups = await gRes.json();
+        if (groups.length === 0) throw new Error('该轮次没有分组数据');
+        let total = 0;
+        for (const g of groups) {
+            const res = await fetch(`${API_BASE}/api/advancements/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ group_id: g.id, round_id: currentRound.id })
+            });
+            const result = await res.json();
+            if (res.ok) total += result.advanced || 0;
+        }
+        showToast(`⬆️ 晋级名单已生成！共 ${total} 人晋级到下一轮`, '🎉');
+        showMsg('admin-msg', `晋级名单生成成功！共 ${total} 人晋级。可在"晋级榜"标签页查看详情。`, 'success');
+    } catch (err) {
+        showMsg('admin-msg', '❌ ' + err.message, 'error');
+    }
+}
+
+async function completeRound() {
+    if (!confirm('确定要结束当前轮次吗？结束后将进入下一轮。')) return;
+    try {
+        const rRes = await fetch(`${API_BASE}/api/rounds/current`);
+        const currentRound = await rRes.json();
+        if (!currentRound) throw new Error('没有进行中的轮次');
+        await fetch(`${API_BASE}/api/rounds/${currentRound.id}/complete`, { method: 'POST' });
+        showToast('✅ 当前轮次已结束', '✅');
+        showMsg('admin-msg', '轮次已结束。如需进行下一轮，请点击"随机分组"为新晋级选手分组。', 'success');
+    } catch (err) {
+        showMsg('admin-msg', '❌ ' + err.message, 'error');
+    }
+}
+
+async function clearPlayers() {
+    if (!confirm('⚠️ 确定要清空所有报名数据吗？此操作不可恢复！')) return;
+    try {
+        await fetch(`${API_BASE}/api/players`, { method: 'DELETE' });
+        showToast('🗑️ 所有报名数据已清空', '✅');
+        loadStats();
+    } catch (err) { showToast('操作失败', '❌'); }
+}
+
+async function resetTournament() {
+    if (!confirm('⚠️ 确定要重置整个赛事吗？所有数据（报名、分组、战绩、晋级）将被清空！')) return;
+    try {
+        await fetch(`${API_BASE}/api/tournament/reset`, { method: 'POST' });
+        showToast('🔄 赛事已重置', '✅');
+        showMsg('admin-msg', '赛事已重置，可以重新报名。', 'success');
+        loadStats();
+    } catch (err) { showMsg('admin-msg', '❌ ' + err.message, 'error'); }
+}
+
+async function updateHeaderStatus() {
+    try {
+        const res = await fetch(`${API_BASE}/api/config`);
+        const config = await res.json();
+        const statusEl = document.getElementById('header-status');
+        if (!statusEl) return;
+        if (config.registration_open === 'true') {
+            statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span><span class="text-gray-300 text-sm">报名进行中</span>';
+        } else {
+            statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-gray-300 text-sm">报名已截止</span>';
+        }
+    } catch (err) {}
+}
+
+// ==================== 初始化 ====================
+window.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    updateHeaderStatus();
+    setInterval(() => {
+        const activeTab = document.querySelector('.tab-panel:not(.hidden)');
+        if (!activeTab || activeTab.id === 'panel-register') loadStats();
+    }, 30000);
+});

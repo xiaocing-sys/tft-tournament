@@ -1,0 +1,16 @@
+{
+  "name": "tft-tournament",
+  "version": "1.0.0",
+  "description": "金铲铲之战水友赛平台",
+  "scripts": {
+    "dev": "netlify dev",
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "serverless-http": "^3.0.2",
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

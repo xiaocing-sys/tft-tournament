@@ -1,0 +1,32 @@
+# 依赖目录
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# 数据库文件
+backend/*.db
+backend/*.db-journal
+backend/*.db-wal
+backend/*.db-shm
+
+# 上传文件
+backend/uploads/
+
+# 环境变量
+.env
+.env.local
+
+# 日志
+*.log
+npm-debug.log*
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Netlify 本地开发
+.netlify/
