@@ -1,4 +1,5 @@
 // Vercel Serverless Function 入口
-// 直接导出 Express app，Vercel 会自动处理
+// 使用 serverless-http 将 Express app 转换为 Vercel Function 格式
+const serverless = require('serverless-http');
 const app = require('../backend/server.js');
-module.exports = app;
+module.exports = serverless(app);
