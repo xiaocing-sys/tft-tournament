@@ -322,7 +322,10 @@ function startCountdown() {
     updateCountdown();
     countdownInterval = setInterval(() => {
         updateCountdown();
-        checkRegistrationClosed();
+        // 每 30 秒检查一次截止时间（而非每秒）
+        if (Math.floor(Date.now() / 1000) % 30 === 0) {
+            checkRegistrationClosed();
+        }
     }, 1000);
 }
 
@@ -773,6 +776,40 @@ function handleDrop(e) {
         reader.readAsDataURL(file);
     }
 }
+// ==================== 图片压缩 ====================
+function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let { width, height } = img;
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+                if (height > maxHeight) {
+                    width = Math.round((width * maxHeight) / height);
+                    height = maxHeight;
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                canvas.toBlob(
+                    (blob) => blob ? resolve(blob) : reject(new Error('图片压缩失败')),
+                    'image/jpeg',
+                    quality
+                );
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 // ==================== SM.MS 图床上传 ====================
 async function uploadToSmMs(file) {
     const formData = new FormData();
@@ -804,9 +841,10 @@ async function submitResult() {
         // 1. 上传截图到 SM.MS 图床
         let screenshotUrl = null;
         if (selectedFile) {
-            showToast('正在上传截图到图床...', 'ℹ️');
+            showToast('正在压缩并上传截图...', 'ℹ️');
             try {
-                screenshotUrl = await uploadToSmMs(selectedFile);
+                const compressedBlob = await compressImage(selectedFile);
+                screenshotUrl = await uploadToSmMs(compressedBlob);
                 showToast('截图上传成功！', '✅');
             } catch (uploadErr) {
                 console.error('[SM.MS] 上传失败:', uploadErr);
@@ -1380,8 +1418,11 @@ window.addEventListener('DOMContentLoaded', () => {
     loadConfig();
     startCountdown();
     updateHeaderStatus();
+    // 每 60 秒刷新一次报名统计（仅在报名 Tab 打开时）
     setInterval(() => {
         const activeTab = document.querySelector('.tab-panel:not(.hidden)');
-        if (!activeTab || activeTab.id === 'panel-register') loadStats();
-    }, 30000);
+        if (activeTab && activeTab.id === 'panel-register') {
+            loadStats();
+        }
+    }, 60000);  // ← 改为 60 秒
 });

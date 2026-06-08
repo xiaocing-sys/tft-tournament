@@ -94,3 +94,31 @@ ON CONFLICT DO NOTHING;
 INSERT INTO seasons (name, is_active)
 VALUES ('2025 春季赛', 1)
 ON CONFLICT DO NOTHING;
+
+-- ==================== 数据库索引（优化查询性能）====================
+-- players 表索引
+CREATE INDEX IF NOT EXISTS idx_players_season_id ON players(season_id);
+CREATE INDEX IF NOT EXISTS idx_players_region ON players(region);
+CREATE INDEX IF NOT EXISTS idx_players_verified ON players(verified);
+
+-- group_players 表索引（最频繁查询的表）
+CREATE INDEX IF NOT EXISTS idx_group_players_group_id ON group_players(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_players_player_id ON group_players(player_id);
+CREATE INDEX IF NOT EXISTS idx_group_players_verified ON group_players(verified);
+CREATE INDEX IF NOT EXISTS idx_group_players_review_status ON group_players(review_status);
+CREATE INDEX IF NOT EXISTS idx_group_players_submitted ON group_players(submitted);
+
+-- groups 表索引
+CREATE INDEX IF NOT EXISTS idx_groups_round_id ON groups(round_id);
+CREATE INDEX IF NOT EXISTS idx_groups_group_status ON groups(group_status);
+
+-- rounds 表索引
+CREATE INDEX IF NOT EXISTS idx_rounds_season_id ON rounds(season_id);
+CREATE INDEX IF NOT EXISTS idx_rounds_status ON rounds(status);
+CREATE INDEX IF NOT EXISTS idx_rounds_stage_name ON rounds(stage_name);
+
+-- seasons 表索引
+CREATE INDEX IF NOT EXISTS idx_seasons_status ON seasons(is_active);
+
+-- config 表索引
+CREATE INDEX IF NOT EXISTS idx_config_key ON config(key);
