@@ -1323,10 +1323,10 @@ app.post('/api/admin/group-players/:id/status', (req, res) => {
 // ==================== 启动服务器 ====================
 
 // 托管前端静态文件（放在所有 API 路由之后）
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '../public')));
 // 所有其他 GET 请求返回 index.html（SPA 支持）
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 // ==================== 启动服务器（兼容本地和 Netlify）====================
