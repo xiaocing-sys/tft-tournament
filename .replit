@@ -1,0 +1,19 @@
+run = "cd backend && node server.js"
+entrypoint = "backend/server.js"
+
+[env]
+  DATABASE_URL = ""
+  LOCAL_OCR_URL = ""
+
+[nix]
+channel = "stable-24_05"
+packages = []
+
+[languages]
+  [languages.javascript]
+    pattern = "**/{*.js,*.jsx,*.ts,*.tsx,*.mjs,*.cjs}"
+    syntax = "javascript"
+
+[deployment]
+  run = ["sh", "-c", "cd backend && node server.js"]
+  deploymentTarget = "cloudrun"
