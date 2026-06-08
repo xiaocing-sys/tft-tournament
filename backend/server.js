@@ -94,8 +94,8 @@ if (process.env.DATABASE_URL) {
         close(cb) { pool.end().then(() => { if (cb) cb(); }); }
     };
 } else {
-    // 本地开发：使用 SQLite
-    const sqlite3 = require('sqlite3').verbose();
+    // 本地开发：使用 SQLite（使用 eval 避免 Vercel 构建时静态分析到 sqlite3）
+    const sqlite3 = eval("require('sqlite3')").verbose();
     const DB_PATH = path.join(__dirname, 'tournament.db');
     const UPLOADS_DIR = path.join(__dirname, 'uploads');
     db = new sqlite3.Database(DB_PATH, (err) => {
