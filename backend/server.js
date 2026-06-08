@@ -5,69 +5,38 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
-// ==================== 百度 OCR 配置 ====================
-const BAIDU_OCR_API_KEY = 'k5u7nYVQeTd6dhErvx4zPFiK';
-const BAIDU_OCR_SECRET_KEY = 'Fn6LfUcuk6uIGS4F0yZFjESoKgWOy2jh';
-let baiduAccessToken = null;
-let baiduTokenExpireTime = 0;
+// ==================== 本地 OCR 服务配置 ====================
+// 通过环境变量配置本地 OCR 服务的公网地址（由 localtunnel 提供）
+const LOCAL_OCR_URL = process.env.LOCAL_OCR_URL || '';
 
-// 获取百度 OCR access token（带缓存）
-async function getBaiduAccessToken() {
-    const now = Date.now();
-    if (baiduAccessToken && now < baiduTokenExpireTime) {
-        return baiduAccessToken;
+// 调用本地 OCR 服务识别截图中的名次
+async function callLocalOCR(imageUrl) {
+    if (!LOCAL_OCR_URL) {
+        throw new Error('本地 OCR 服务未配置（请设置 LOCAL_OCR_URL 环境变量）');
     }
     return new Promise((resolve, reject) => {
-        const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${BAIDU_OCR_API_KEY}&client_secret=${BAIDU_OCR_SECRET_KEY}`;
-        https.get(url, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                try {
-                    const json = JSON.parse(data);
-                    if (json.access_token) {
-                        baiduAccessToken = json.access_token;
-                        baiduTokenExpireTime = now + (json.expires_in - 86400) * 1000; // 提前1天过期
-                        resolve(baiduAccessToken);
-                    } else {
-                        reject(new Error('获取百度 OCR token 失败: ' + data));
-                    }
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        }).on('error', reject);
-    });
-}
-
-// 调用百度 OCR API（仅识别数字）
-async function callBaiduOCR(imageUrl) {
-    const token = await getBaiduAccessToken();
-    return new Promise((resolve, reject) => {
-        const postData = `url=${encodeURIComponent(imageUrl)}`;
+        const postData = JSON.stringify({ image_url });
+        const url = new URL('/ocr', LOCAL_OCR_URL);
         const options = {
-            hostname: 'aip.baidubce.com',
-            path: `/rest/2.0/ocr/v1/accurate_basic?access_token=${token}`,
+            hostname: url.hostname,
+            port: url.port || (url.protocol === 'https:' ? 443 : 80),
+            path: url.pathname,
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(postData)
             }
         };
-        const req = https.request(options, (res) => {
+        const protocol = url.protocol === 'https:' ? https : http;
+        const req = protocol.request(options, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
                     const json = JSON.parse(data);
-                    if (json.words_result) {
-                        resolve(json.words_result.map(w => w.words).join('\n'));
-                    } else {
-                        reject(new Error('百度 OCR 识别失败: ' + JSON.stringify(json)));
-                    }
-                } catch (e) {
-                    reject(e);
-                }
+                    if (json.success) resolve(json.raw_text || '');
+                    else reject(new Error(json.error || '本地 OCR 识别失败'));
+                } catch (e) { reject(e); }
             });
         });
         req.on('error', reject);
@@ -153,7 +122,28 @@ if (dbMode === 'sqlite') {
         }
     });
 } else {
-    console.log('[DB] PostgreSQL 模式：请手动执行 schema-postgres.sql');
+    console.log('[DB] PostgreSQL 模式：检查并初始化数据库表...');
+    // PostgreSQL 模式：自动检查并创建表
+    const schemaPath = path.join(__dirname, 'schema-postgres.sql');
+    if (fs.existsSync(schemaPath)) {
+        const schema = fs.readFileSync(schemaPath, 'utf8');
+        // 分割 SQL 语句并执行
+        const statements = schema.split(';').filter(s => s.trim());
+        let completed = 0;
+        statements.forEach(stmt => {
+            pool.query(stmt, (err) => {
+                if (err && !err.message.includes('already exists')) {
+                    console.error('执行 schema 语句失败:', err.message);
+                }
+                completed++;
+                if (completed === statements.length) {
+                    console.log('[DB] PostgreSQL 数据库表初始化完成');
+                }
+            });
+        });
+    } else {
+        console.log('[DB] 未找到 schema-postgres.sql，跳过自动初始化');
+    }
 }
 
 // ========== 赛季数据迁移 ==========
@@ -853,7 +843,7 @@ app.post('/api/results/verify', async (req, res) => {
             try {
                 // 2. 调用百度 OCR 识别截图
                 console.log('[百度OCR] 开始识别截图:', imageUrl);
-                const text = await callBaiduOCR(imageUrl);
+                const text = await callLocalOCR(imageUrl);
                 console.log('[百度OCR] 识别结果:', text.substring(0, 200));
 
                 // 3. 从识别结果中提取名次（查找 1-8 的数字）

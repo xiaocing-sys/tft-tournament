@@ -1,61 +1,90 @@
-// Netlify Function：将 Express 应用包装为 Serverless 函数
-// 使用 serverless-http 将 Express app 转换为 Netlify Function 格式
+// 金铲铲水友赛平台 - Netlify 独立函数（带实时时间戳）
+// 版本：20250608-v11（时间戳：CHECK-TIMESTAMP）
+
+const express = require('express');
+const cors = require('cors');
+const { Pool } = require('pg');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// 数据库
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
+// 包装 pg
+const db = {
+    get(sql, params, cb) {
+        if (typeof params === 'function') { cb = params; params = []; }
+        pool.query(sql.replace(/\?/g, (_, i) => `$${i+1}`), params || [], (err, res) => {
+            if (cb) cb(err, res ? res.rows[0] || null : null);
+        });
+    },
+    all(sql, params, cb) {
+        if (typeof params === 'function') { cb = params; params = []; }
+        pool.query(sql.replace(/\?/g, (_, i) => `$${i+1}`), params || [], (err, res) => {
+            if (cb) cb(err, res ? res.rows : []);
+        });
+    },
+    run(sql, params, cb) {
+        if (typeof params === 'function') { cb = params; params = []; }
+        pool.query(sql.replace(/\?/g, (_, i) => `$${i+1}`), params || [], (err, res) => {
+            if (cb) cb(err, { lastID: res && res.rows && res.rows[0] ? res.rows[0].id : 0, changes: res ? res.rowCount : 0 });
+        });
+    }
+};
+
+// API 端点
+
+// 获取统计数据（实时查询数据库）
+app.get('/api/stats', (req, res) => {
+    const stats = { qq_count: 0, wx_count: 0, total: 0, timestamp: new Date().toISOString() };
+    db.get('SELECT COUNT(*) as count FROM players WHERE region = $1', ['QQ'], (err, row) => {
+        if (!err && row) stats.qq_count = row.count;
+        db.get('SELECT COUNT(*) as count FROM players WHERE region = $1', ['WeChat'], (err, row) => {
+            if (!err && row) stats.wx_count = row.count;
+            stats.total = stats.qq_count + stats.wx_count;
+            res.json(stats);
+        });
+    });
+});
+
+// 报名接口
+app.post('/api/register', (req, res) => {
+    const { game_uid, game_nickname, region, contact } = req.body;
+    if (!game_uid || !game_nickname || !region || !contact) {
+        return res.status(400).json({ error: '缺少必填字段' });
+    }
+    db.get('SELECT id FROM players WHERE game_uid = $1 AND region = $2', [game_uid, region], (err, row) => {
+        if (row) return res.status(400).json({ error: '该游戏UID已报名' });
+        db.run(
+            'INSERT INTO players (game_uid, game_nickname, region, contact, registration_time, season_id) VALUES ($1, $2, $3, $4, $5, $6)',
+            [game_uid, game_nickname, region, contact, new Date().toISOString(), 1],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ success: true, player_id: this.lastID });
+            }
+        );
+    });
+});
+
+// 默认路由
+app.get('*', (req, res) => {
+    res.send('金铲铲水友赛平台 API - 版本 20250608-v11（时间戳：' + new Date().toISOString() + ')');
+});
+
+// 导出 handler
 const serverless = require('serverless-http');
-const path = require('path');
-
-// 设置环境变量（在加载 server.js 之前）
-// DATABASE_URL 在 Netlify 后台设置，无需在此硬编码
-
 let cachedHandler = null;
 
 exports.handler = async (event, context) => {
     if (!cachedHandler) {
-        // 清除 require 缓存，确保冷启动时重新加载
-        const serverJsPath = path.resolve(__dirname, '..', '..', 'backend', 'server.js');
-        if (require.cache[serverJsPath]) {
-            delete require.cache[serverJsPath];
-        }
-        
-        // 加载 server.js，获取导出的 app
-        const serverModule = require(serverJsPath);
-        const app = serverModule.app || serverModule;
-        
-        if (!app) {
-            throw new Error(
-                'server.js 未导出 app！\n' +
-                '请在 server.js 末尾添加：\n' +
-                'if (typeof module !== "undefined" && module.exports) {\n' +
-                '    module.exports.app = app;\n' +
-                '}'
-            );
-        }
-        
-        // 使用 serverless-http 包装 Express app
-        // binary 选项：支持图片等二进制响应
         cachedHandler = serverless(app, {
-            binary: ['image/*', 'application/octet-stream', 'application/pdf'],
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }
+            headers: { 'Access-Control-Allow-Origin': '*' }
         });
-        
-        console.log('[Netlify] Function handler cached');
     }
-    
-    // 处理 OPTIONS 预检请求
-    if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type'
-            },
-            body: ''
-        };
-    }
-    
     return await cachedHandler(event, context);
 };

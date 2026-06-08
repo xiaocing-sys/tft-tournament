@@ -7,8 +7,12 @@
     "start": "node backend/server.js"
   },
   "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "jimp": "^1.6.1",
     "pg": "^8.11.3",
-    "serverless-http": "^3.2.0"
+    "serverless-http": "^3.2.0",
+    "tesseract.js": "^7.0.0"
   },
   "engines": {
     "node": ">=18"
