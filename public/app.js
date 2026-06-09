@@ -1575,6 +1575,13 @@ async function adminLogout() {
 
 // ==================== 初始化 ====================
 window.addEventListener('DOMContentLoaded', () => {
+    // 初始化 currentTab：找到默认激活的 tab
+    const activeBtn = document.querySelector('.tab-btn.tab-active');
+    if (activeBtn) {
+        const id = activeBtn.id; // e.g. "tab-import-players"
+        currentTab = id.replace('tab-', '');
+    }
+
     loadStats();
     loadConfig();
     startCountdown();
