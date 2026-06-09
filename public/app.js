@@ -48,6 +48,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ==================== Tab 切换 ====================
 function switchTab(tabName) {
+    // 重置滚动位置，避免长页面切换后看不到内容
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
     document.querySelectorAll('.tab-btn').forEach(b => {
         b.classList.remove('tab-active');
@@ -1540,6 +1543,20 @@ async function importResults() {
         showToast('❌ 导入失败：' + err.message, '❌');
     }
     btn.disabled = false; btn.textContent = '✅ 确认导入';
+}
+
+// ==================== 管理员退出 ====================
+async function adminLogout() {
+    try {
+        await fetch(`${API_BASE}/api/admin/logout`, { method: 'POST', credentials: 'include' });
+        showToast('已退出登录', '👋');
+        setTimeout(() => {
+            window.location.href = '/login.html';
+        }, 500);
+    } catch (err) {
+        console.error('退出失败:', err);
+        window.location.href = '/login.html';
+    }
 }
 
 // ==================== 初始化 ====================
