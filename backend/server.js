@@ -4,6 +4,7 @@ const cors = require('cors');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
+const cookieParser = require('cookie-parser');
 
 // ==================== 本地 OCR 服务配置 ====================
 // 通过环境变量配置本地 OCR 服务的公网地址（由 localtunnel 提供）
@@ -47,6 +48,29 @@ async function callLocalOCR(imageUrl) {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ==================== 管理员登录配置 ====================
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // 默认密码，建议通过环境变量设置
+const cookieParser = require('cookie-parser');
+app.use(cookieParser('tft-admin-secret'));
+
+// 简单的 admin token 生成（用于 cookie 验证）
+function generateAdminToken() {
+    return Buffer.from(`admin:${Date.now()}:${Math.random()}`).toString('base64');
+}
+
+// 验证管理员登录状态的中间件
+function requireAdmin(req, res, next) {
+    const token = req.cookies && req.cookies.admin_token;
+    if (token && token.startsWith('admin_auth_')) {
+        return next(); // 已登录
+    }
+    // 未登录，返回 401
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ success: false, error: '未登录' });
+    }
+    res.redirect('/login.html');
+}
 
 // ==================== 数据库适配（SQLite 本地 / PostgreSQL Netlify）====================
 let db = null;
@@ -107,6 +131,52 @@ if (process.env.DATABASE_URL) {
 
 app.use(cors());
 app.use(express.json());
+app.use(require('cookie-parser')());
+// ==================== 管理员登录 API ====================
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+app.post('/api/admin/login', (req, res) => {
+    const { password } = req.body;
+    if (password === ADMIN_PASSWORD) {
+        res.cookie('admin_token', 'admin_auth_' + Date.now(), { httpOnly: true, maxAge: 7*24*60*60*1000 });
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ success: false, error: '密码错误' });
+    }
+});
+app.post('/api/admin/logout', (req, res) => { res.clearCookie('admin_token'); res.json({ success: true }); });
+app.get('/api/admin/check', (req, res) => {
+    const token = req.cookies && req.cookies.admin_token;
+    res.json({ success: true, loggedIn: token && token.startsWith('admin_auth_') });
+});
+
+// ==================== 管理员认证中间件 ====================
+function requireAdmin(req, res, next) {
+    const token = req.cookies && req.cookies.admin_token;
+    if (token && token.startsWith('admin_auth_')) {
+        return next(); // 已登录，继续
+    }
+    // 未登录
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ success: false, error: '未登录' });
+    }
+    res.redirect('/login.html');
+}
+
+// 对所有管理 API 应用认证（除了登录相关）
+app.use('/api', (req, res, next) => {
+    if (req.path === '/admin/login' || req.path === '/admin/check' || req.path === '/admin/logout') {
+        return next(); // 登录相关接口不需要认证
+    }
+    requireAdmin(req, res, next);
+});
+
+// 对所有页面应用认证（除了登录页面）
+app.use((req, res, next) => {
+    if (req.path === '/login.html' || req.path === '/api/admin/login' || req.path === '/api/admin/check') {
+        return next();
+    }
+    requireAdmin(req, res, next);
+});
 
 // 初始化数据库（仅 SQLite 模式执行 schema）
 if (dbMode === 'sqlite') {

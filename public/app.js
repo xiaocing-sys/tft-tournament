@@ -11,6 +11,31 @@ function fixScreenshotUrl(path) {
     return API_BASE + path;  // 相对路径（本地开发）
 }
 
+// ==================== 管理员登录检查 ====================
+let isAdminLoggedIn = false;
+
+async function checkLogin() {
+    try {
+        const res = await fetch('/api/admin/check');
+        const data = await res.json();
+        if (!data.loggedIn) {
+            window.location.href = '/login.html';
+            return false;
+        }
+        isAdminLoggedIn = true;
+        return true;
+    } catch (err) {
+        console.error('登录检查失败:', err);
+        return false;
+    }
+}
+
+// 页面加载时检查登录状态
+document.addEventListener('DOMContentLoaded', async () => {
+    const loggedIn = await checkLogin();
+    if (loggedIn) loadStats();
+});
+
 // ==================== Tab 切换 ====================
 function switchTab(tabName) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
