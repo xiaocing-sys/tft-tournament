@@ -67,8 +67,59 @@
     <!-- 主内容区 -->
     <div class="max-w-7xl mx-auto px-4 py-6">
 
-        <!-- Tab: 报名参赛 -->
-        <div id="panel-register" class="tab-panel">
+        <!-- Tab: 导入玩家 -->
+        <div id="panel-import-players" class="tab-panel">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-xl font-bold mb-4">📥 批量导入玩家</h2>
+                <p class="text-gray-400 text-sm mb-4">支持 CSV 格式，每行一个玩家。格式：游戏ID,昵称,大区(QQ/WeChat),联系方式</p>
+                <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-4">
+                    <textarea id="import-players-csv" rows="12" placeholder="game_uid,game_nickname,region,contact\n123456,小明,QQ,88888888\n654321,小红,WeChat,wxid123" 
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white text-sm font-mono placeholder-gray-600 focus:border-yellow-500 focus:outline-none resize-y"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="importPlayers()" id="import-players-btn" class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold px-6 py-2 rounded-lg text-sm">
+                        ✅ 确认导入
+                    </button>
+                    <button onclick="document.getElementById('import-players-csv').value=''" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm">
+                        🗑️ 清空
+                    </button>
+                    <button onclick="downloadPlayersTemplate()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm">
+                        📄 下载模板
+                    </button>
+                </div>
+                <div id="import-players-result" class="mt-4 hidden"></div>
+            </div>
+        </div>
+
+        <!-- Tab: 导入战绩 -->
+        <div id="panel-import-results" class="tab-panel hidden">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-xl font-bold mb-4">📊 批量导入战绩</h2>
+                <p class="text-gray-400 text-sm mb-4">先选择轮次，然后粘贴 CSV 数据。格式：联系方式/游戏ID,名次(1-8)</p>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-2">选择轮次</label>
+                    <select id="import-results-round" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm">
+                        <option value="">-- 请选择轮次 --</option>
+                    </select>
+                </div>
+                <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-4">
+                    <textarea id="import-results-csv" rows="12" placeholder="contact,placement\n88888888,1\nwxid123,3" 
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white text-sm font-mono placeholder-gray-600 focus:border-yellow-500 focus:outline-none resize-y"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="importResults()" id="import-results-btn" class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold px-6 py-2 rounded-lg text-sm">
+                        ✅ 确认导入
+                    </button>
+                    <button onclick="document.getElementById('import-results-csv').value=''" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm">
+                        🗑️ 清空
+                    </button>
+                </div>
+                <div id="import-results-result" class="mt-4 hidden"></div>
+            </div>
+        </div>
+
+        <!-- Tab: 报名参赛（已隐藏，保留代码兼容） -->
+        <div id="panel-register" class="tab-panel hidden">
             <div class="max-w-2xl mx-auto">
 
                 <!-- 步骤1: 选择大区 -->

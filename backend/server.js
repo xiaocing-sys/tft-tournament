@@ -50,14 +50,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ==================== 管理员登录配置 ====================
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // 默认密码，建议通过环境变量设置
-const cookieParser = require('cookie-parser');
+// 支持3个管理员账号，密码通过环境变量或默认值配置
+const ADMIN_PASSWORDS = [
+    process.env.ADMIN_PASSWORD_1 || 'admin123',
+    process.env.ADMIN_PASSWORD_2 || 'admin456',
+    process.env.ADMIN_PASSWORD_3 || 'admin789'
+];
 app.use(cookieParser('tft-admin-secret'));
-
-// 简单的 admin token 生成（用于 cookie 验证）
-function generateAdminToken() {
-    return Buffer.from(`admin:${Date.now()}:${Math.random()}`).toString('base64');
-}
 
 // 验证管理员登录状态的中间件
 function requireAdmin(req, res, next) {
@@ -131,14 +130,13 @@ if (process.env.DATABASE_URL) {
 
 app.use(cors());
 app.use(express.json());
-app.use(require('cookie-parser')());
 // ==================== 管理员登录 API ====================
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 app.post('/api/admin/login', (req, res) => {
     const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-        res.cookie('admin_token', 'admin_auth_' + Date.now(), { httpOnly: true, maxAge: 7*24*60*60*1000 });
-        res.json({ success: true });
+    const idx = ADMIN_PASSWORDS.indexOf(password);
+    if (idx !== -1) {
+        res.cookie('admin_token', 'admin_auth_' + idx + '_' + Date.now(), { httpOnly: true, maxAge: 7*24*60*60*1000 });
+        res.json({ success: true, adminIndex: idx + 1 });
     } else {
         res.status(401).json({ success: false, error: '密码错误' });
     }
@@ -146,21 +144,14 @@ app.post('/api/admin/login', (req, res) => {
 app.post('/api/admin/logout', (req, res) => { res.clearCookie('admin_token'); res.json({ success: true }); });
 app.get('/api/admin/check', (req, res) => {
     const token = req.cookies && req.cookies.admin_token;
-    res.json({ success: true, loggedIn: token && token.startsWith('admin_auth_') });
+    const loggedIn = token && token.startsWith('admin_auth_');
+    let adminIndex = null;
+    if (loggedIn) {
+        const parts = token.split('_');
+        adminIndex = parts[2] ? parseInt(parts[2]) + 1 : 1;
+    }
+    res.json({ success: true, loggedIn, adminIndex });
 });
-
-// ==================== 管理员认证中间件 ====================
-function requireAdmin(req, res, next) {
-    const token = req.cookies && req.cookies.admin_token;
-    if (token && token.startsWith('admin_auth_')) {
-        return next(); // 已登录，继续
-    }
-    // 未登录
-    if (req.path.startsWith('/api/')) {
-        return res.status(401).json({ success: false, error: '未登录' });
-    }
-    res.redirect('/login.html');
-}
 
 // 对所有管理 API 应用认证（除了登录相关）
 app.use('/api', (req, res, next) => {
@@ -176,6 +167,167 @@ app.use((req, res, next) => {
         return next();
     }
     requireAdmin(req, res, next);
+});
+
+// ==================== CSV 导入工具 ====================
+function parseCSV(csvText) {
+    const lines = csvText.trim().split(/\r?\n/);
+    if (lines.length === 0) return [];
+    const rows = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const cells = [];
+        let cell = '';
+        let inQuotes = false;
+        for (let j = 0; j < line.length; j++) {
+            const ch = line[j];
+            if (ch === '"') {
+                if (inQuotes && line[j + 1] === '"') {
+                    cell += '"';
+                    j++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (ch === ',' && !inQuotes) {
+                cells.push(cell.trim());
+                cell = '';
+            } else {
+                cell += ch;
+            }
+        }
+        cells.push(cell.trim());
+        rows.push(cells);
+    }
+    return rows;
+}
+
+// ==================== 管理员 CSV 批量导入 API ====================
+
+// 导入玩家 CSV
+// CSV 格式（支持表头行）：game_uid, game_nickname, region, contact
+app.post('/api/admin/import/players', (req, res) => {
+    const { csv, season_id = 1 } = req.body;
+    if (!csv || typeof csv !== 'string') {
+        return res.status(400).json({ success: false, error: '请提供 CSV 内容' });
+    }
+
+    const rows = parseCSV(csv);
+    if (rows.length === 0) {
+        return res.status(400).json({ success: false, error: 'CSV 内容为空' });
+    }
+
+    // 判断第一行是否为表头
+    const first = rows[0];
+    const hasHeader = first.some(c => /game_uid|昵称|大区|联系方式|uid|nick|region|contact/i.test(c));
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+
+    const imported = [];
+    const errors = [];
+    let pending = dataRows.length;
+    if (pending === 0) return res.json({ success: true, imported: 0, errors: ['没有数据行'] });
+
+    dataRows.forEach((row, idx) => {
+        const [game_uid, game_nickname, region, contact] = row;
+        if (!game_uid || !game_nickname) {
+            errors.push(`第 ${idx + 1} 行缺少必要字段`);
+            pending--;
+            if (pending === 0) finish();
+            return;
+        }
+        const cleanRegion = (region || 'QQ').trim();
+        const validRegion = ['QQ', 'WeChat'].includes(cleanRegion) ? cleanRegion : 'QQ';
+        db.run(
+            `INSERT OR REPLACE INTO players (game_uid, game_nickname, region, contact, season_id) VALUES (?, ?, ?, ?, ?)`,
+            [game_uid.trim(), game_nickname.trim(), validRegion, (contact || '').trim(), season_id],
+            (err) => {
+                if (err) errors.push(`第 ${idx + 1} 行导入失败: ${err.message}`);
+                else imported.push({ game_uid, game_nickname, region: validRegion, contact });
+                pending--;
+                if (pending === 0) finish();
+            }
+        );
+    });
+
+    function finish() {
+        res.json({ success: true, importedCount: imported.length, errorCount: errors.length, errors: errors.slice(0, 10) });
+    }
+});
+
+// 导入战绩 CSV
+// CSV 格式（支持表头行）：contact(qq_number), round_number, ranking(placement)
+app.post('/api/admin/import/results', (req, res) => {
+    const { csv, round_id } = req.body;
+    if (!csv || typeof csv !== 'string') {
+        return res.status(400).json({ success: false, error: '请提供 CSV 内容' });
+    }
+    if (!round_id) {
+        return res.status(400).json({ success: false, error: '请提供 round_id（轮次ID）' });
+    }
+
+    const rows = parseCSV(csv);
+    if (rows.length === 0) {
+        return res.status(400).json({ success: false, error: 'CSV 内容为空' });
+    }
+
+    const first = rows[0];
+    const hasHeader = first.some(c => /qq|contact|轮次|round|名次|排名|ranking|placement/i.test(c));
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+
+    // 先获取该轮次的所有 group_players，建立 contact -> group_player_id 映射
+    db.all(`
+        SELECT gp.id as gp_id, p.contact, p.game_uid, gp.group_id
+        FROM group_players gp
+        JOIN players p ON gp.player_id = p.id
+        JOIN groups g ON gp.group_id = g.id
+        WHERE g.round_id = ?
+    `, [round_id], (err, gpRows) => {
+        if (err) return res.status(500).json({ success: false, error: err.message });
+
+        const contactMap = {};
+        gpRows.forEach(r => {
+            const key = (r.contact || r.game_uid || '').trim();
+            if (key) contactMap[key] = r.gp_id;
+        });
+
+        const imported = [];
+        const errors = [];
+        let pending = dataRows.length;
+        if (pending === 0) return res.json({ success: true, imported: 0, errors: ['没有数据行'] });
+
+        dataRows.forEach((row, idx) => {
+            const [contactOrUid, roundNumStr, rankingStr] = row;
+            const lookup = (contactOrUid || '').trim();
+            const placement = parseInt(rankingStr, 10);
+            if (!lookup || isNaN(placement) || placement < 1 || placement > 8) {
+                errors.push(`第 ${idx + 1} 行数据无效: ${row.join(',')}`);
+                pending--;
+                if (pending === 0) finish();
+                return;
+            }
+            const gpId = contactMap[lookup];
+            if (!gpId) {
+                errors.push(`第 ${idx + 1} 行找不到对应玩家: ${lookup}`);
+                pending--;
+                if (pending === 0) finish();
+                return;
+            }
+            db.run(
+                `UPDATE group_players SET placement = ?, submitted = 1, submitted_at = ? WHERE id = ?`,
+                [placement, new Date().toISOString(), gpId],
+                (err) => {
+                    if (err) errors.push(`第 ${idx + 1} 行更新失败: ${err.message}`);
+                    else imported.push({ contact: lookup, placement });
+                    pending--;
+                    if (pending === 0) finish();
+                }
+            );
+        });
+
+        function finish() {
+            res.json({ success: true, importedCount: imported.length, errorCount: errors.length, errors: errors.slice(0, 10) });
+        }
+    });
 });
 
 // 初始化数据库（仅 SQLite 模式执行 schema）
@@ -749,7 +901,6 @@ app.post('/api/groups/generate', (req, res) => {
         });
     });
 });
-;
 
 // 获取某轮次的所有分组（含玩家详情）
 app.get('/api/groups/:roundId', (req, res) => {

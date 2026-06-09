@@ -61,6 +61,8 @@ function switchTab(tabName) {
         case 'bracket': loadBracket(); break;
         case 'datasheet': loadDataSheet(); break;
         case 'admin': loadPendingReviews(); break;
+        case 'import-players': break;
+        case 'import-results': loadRoundsForImport(); break;
     }
 }
 
@@ -1435,6 +1437,99 @@ async function reviewResult(groupPlayerId, action) {
     } catch (err) {
         showToast('审核失败: ' + err.message, '❌');
     }
+}
+
+// ==================== CSV 导入功能 ====================
+async function importPlayers() {
+    const csv = document.getElementById('import-players-csv').value.trim();
+    const btn = document.getElementById('import-players-btn');
+    const resultEl = document.getElementById('import-players-result');
+    if (!csv) { showToast('请输入 CSV 数据', '⚠️'); return; }
+    btn.disabled = true; btn.textContent = '导入中...';
+    try {
+        const res = await fetch(`${API_BASE}/api/admin/import/players`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ csv })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        resultEl.classList.remove('hidden');
+        let html = `<div class="bg-green-900/30 border border-green-500/30 rounded-lg p-4">
+            <div class="font-bold text-green-300 mb-2">✅ 导入完成</div>
+            <div class="text-sm text-gray-300">成功导入 ${data.importedCount} 人`;
+        if (data.errorCount > 0) {
+            html += `，失败 ${data.errorCount} 人</div>
+            <div class="mt-2 text-xs text-red-300">失败详情：<br>${data.errors.join('<br>')}</div>`;
+        } else {
+            html += `</div>`;
+        }
+        html += `</div>`;
+        resultEl.innerHTML = html;
+        showToast(`✅ 成功导入 ${data.importedCount} 人`, '✅');
+    } catch (err) {
+        resultEl.classList.remove('hidden');
+        resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-500/30 rounded-lg p-4 text-red-300">❌ 导入失败：${err.message}</div>`;
+        showToast('❌ 导入失败：' + err.message, '❌');
+    }
+    btn.disabled = false; btn.textContent = '✅ 确认导入';
+}
+
+function downloadPlayersTemplate() {
+    const csv = '\uFEFFgame_uid,game_nickname,region,contact\n123456,小明,QQ,88888888\n654321,小红,WeChat,wxid123';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'players_template.csv';
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+async function loadRoundsForImport() {
+    const select = document.getElementById('import-results-round');
+    if (!select) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/rounds`);
+        const rounds = await res.json();
+        select.innerHTML = '<option value="">-- 请选择轮次 --</option>' +
+            rounds.map(r => `<option value="${r.id}">${r.name} (${r.status === 'active' ? '进行中' : r.status === 'completed' ? '已结束' : '待开始'})</option>`).join('');
+    } catch (err) { console.error('加载轮次失败:', err); }
+}
+
+async function importResults() {
+    const csv = document.getElementById('import-results-csv').value.trim();
+    const roundId = document.getElementById('import-results-round').value;
+    const btn = document.getElementById('import-results-btn');
+    const resultEl = document.getElementById('import-results-result');
+    if (!csv) { showToast('请输入 CSV 数据', '⚠️'); return; }
+    if (!roundId) { showToast('请选择轮次', '⚠️'); return; }
+    btn.disabled = true; btn.textContent = '导入中...';
+    try {
+        const res = await fetch(`${API_BASE}/api/admin/import/results`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ csv, round_id: parseInt(roundId, 10) })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        resultEl.classList.remove('hidden');
+        let html = `<div class="bg-green-900/30 border border-green-500/30 rounded-lg p-4">
+            <div class="font-bold text-green-300 mb-2">✅ 导入完成</div>
+            <div class="text-sm text-gray-300">成功导入 ${data.importedCount} 条战绩`;
+        if (data.errorCount > 0) {
+            html += `，失败 ${data.errorCount} 条</div>
+            <div class="mt-2 text-xs text-red-300">失败详情：<br>${data.errors.join('<br>')}</div>`;
+        } else {
+            html += `</div>`;
+        }
+        html += `</div>`;
+        resultEl.innerHTML = html;
+        showToast(`✅ 成功导入 ${data.importedCount} 条战绩`, '✅');
+    } catch (err) {
+        resultEl.classList.remove('hidden');
+        resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-500/30 rounded-lg p-4 text-red-300">❌ 导入失败：${err.message}</div>`;
+        showToast('❌ 导入失败：' + err.message, '❌');
+    }
+    btn.disabled = false; btn.textContent = '✅ 确认导入';
 }
 
 // ==================== 初始化 ====================
