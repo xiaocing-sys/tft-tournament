@@ -419,7 +419,7 @@ let playersRegionFilter = 'all';
 async function loadPlayers() {
     const tbody = document.getElementById('players-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-300">加载中...</td></tr>';
     try {
         // 获取当前赛季 ID
         let seasonId = '';
@@ -445,12 +445,12 @@ function renderPlayers(players) {
     if (!tbody) return;
     if (countEl) countEl.textContent = `共 ${players.length} 人`;
     if (players.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无报名玩家，快来报名吧！</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-300">暂无报名玩家，快来报名吧！</td></tr>';
         return;
     }
     tbody.innerHTML = players.map((p, i) => `
-        <tr class="hover:bg-gray-800/50 transition-colors">
-            <td class="px-4 py-3 text-gray-500 font-mono text-xs">${String(i + 1).padStart(3, '0')}</td>
+        <tr class="hover:bg-[#161620]/50 transition-colors">
+            <td class="px-4 py-3 text-gray-300 font-mono text-xs">${String(i + 1).padStart(3, '0')}</td>
             <td class="px-4 py-3 font-mono text-yellow-400 font-semibold">${p.game_uid}</td>
             <td class="px-4 py-3 text-white font-medium">${p.game_nickname}</td>
             <td class="px-4 py-3">
@@ -458,9 +458,9 @@ function renderPlayers(players) {
                     ${p.region === 'QQ' ? 'QQ区' : '微信区'}
                 </span>
             </td>
-            <td class="px-4 py-3 text-gray-400 text-sm">${p.contact || '-'}</td>
+            <td class="px-4 py-3 text-gray-300 text-sm">${p.contact || '-'}</td>
             <td class="px-4 py-3 text-yellow-300 text-sm font-mono">${p.award_qq || '-'}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">${new Date(p.registered_at).toLocaleString('zh-CN')}</td>
+            <td class="px-4 py-3 text-gray-300 text-xs">${new Date(p.registered_at).toLocaleString('zh-CN')}</td>
         </tr>
     `).join('');
 }
@@ -469,7 +469,7 @@ function filterPlayersByRegion(region) {
     playersRegionFilter = region;
     // 更新按钮样式
     document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.className = 'filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-500';
+        btn.className = 'filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-gray-500';
     });
     const activeBtn = document.getElementById(region === 'all' ? 'filter-all' : region === 'QQ' ? 'filter-qq' : 'filter-wx');
     if (activeBtn) {
@@ -487,7 +487,7 @@ function filterPlayersByRegion(region) {
 async function loadDataSheet() {
     const tbody = document.getElementById('ds-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-300">加载中...</td></tr>';
     try {
         const res = await fetch(`${API_BASE}/api/players`);
         allPlayersCache = await res.json();
@@ -515,13 +515,13 @@ function renderDataSheet(players) {
     const countInfo = document.getElementById('ds-count-info');
     if (!tbody) return;
     if (players.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无匹配数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-300">暂无匹配数据</td></tr>';
         if (countInfo) countInfo.textContent = '共 0 条记录';
         return;
     }
     tbody.innerHTML = players.map((p, i) => `
-        <tr class="hover:bg-gray-800/50 transition-colors">
-            <td class="px-4 py-3 text-gray-500 font-mono text-xs">${i + 1}</td>
+        <tr class="hover:bg-[#161620]/50 transition-colors">
+            <td class="px-4 py-3 text-gray-300 font-mono text-xs">${i + 1}</td>
             <td class="px-4 py-3 font-mono text-yellow-400 font-semibold">${p.game_uid}</td>
             <td class="px-4 py-3 text-white font-medium">${p.game_nickname}</td>
             <td class="px-4 py-3">
@@ -529,9 +529,9 @@ function renderDataSheet(players) {
                     ${p.region === 'QQ' ? 'QQ区' : '微信区'}
                 </span>
             </td>
-            <td class="px-4 py-3 text-gray-400 text-sm">${p.contact || '-'}</td>
+            <td class="px-4 py-3 text-gray-300 text-sm">${p.contact || '-'}</td>
             <td class="px-4 py-3 text-yellow-300 text-sm font-mono">${p.award_qq || '-'}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">${new Date(p.registered_at).toLocaleString('zh-CN')}</td>
+            <td class="px-4 py-3 text-gray-300 text-xs">${new Date(p.registered_at).toLocaleString('zh-CN')}</td>
         </tr>
     `).join('');
     if (countInfo) countInfo.textContent = `共 ${players.length} 条记录`;
@@ -596,26 +596,26 @@ function renderGroupCard(g, medalColors) {
         ? '<span class="text-xs bg-green-900/60 text-green-300 px-2 py-0.5 rounded font-medium">💬 微信区</span>'
         : '';
     return `
-        <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-gray-700 overflow-hidden ${borderColor} transition-colors">
-            <div class="bg-gray-800/80 px-5 py-4 flex items-center justify-between">
+        <div class="bg-gradient-to-br from-[#0f0f18] to-[#161620] rounded-2xl border border-yellow-500/15 overflow-hidden ${borderColor} transition-colors">
+            <div class="bg-[#161620]/80 px-5 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="font-bold text-yellow-400 text-lg">🏆 第 ${g.group_number} 组</div>
                     ${regionBadge}
                 </div>
-                <div class="text-xs text-gray-400 bg-gray-900 px-3 py-1 rounded-full">${g.player_count}/8 人</div>
+                <div class="text-xs text-gray-300 bg-[#0f0f18] px-3 py-1 rounded-full">${g.player_count}/8 人</div>
             </div>
-            <div class="divide-y divide-gray-800/50">
+            <div class="divide-y divide-yellow-500/10">
                 ${(g.players && g.players.length > 0) ? g.players.map((gp, idx) => {
-                    const rankCls = gp.placement && gp.placement <= 4 ? medalColors[(gp.placement || 1) - 1] : 'bg-gray-800/50 text-gray-500';
+                    const rankCls = gp.placement && gp.placement <= 4 ? medalColors[(gp.placement || 1) - 1] : 'bg-[#161620]/50 text-gray-300';
                     return `
-                        <div class="px-5 py-3 flex items-center justify-between hover:bg-gray-800/30 transition-colors">
+                        <div class="px-5 py-3 flex items-center justify-between hover:bg-[#161620]/30 transition-colors">
                             <div class="flex items-center gap-3">
-                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${gp.placement ? rankCls : 'bg-gray-800 text-gray-600'}">
+                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${gp.placement ? rankCls : 'bg-[#161620] text-gray-300'}">
                                     ${gp.placement || '-'}
                                 </span>
                                 <div>
                                     <div class="text-white font-medium">${gp.game_nickname}</div>
-                                    <div class="text-xs text-gray-500 font-mono">ID: ${gp.game_uid}</div>
+                                    <div class="text-xs text-gray-300 font-mono">ID: ${gp.game_uid}</div>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -631,7 +631,7 @@ function renderGroupCard(g, medalColors) {
                             </div>
                         </div>
                     `;
-                }).join('') : '<div class="px-5 py-8 text-center text-gray-500 text-sm">暂无玩家</div>'}
+                }).join('') : '<div class="px-5 py-8 text-center text-gray-300 text-sm">暂无玩家</div>'}
             </div>
         </div>
     `;
@@ -650,7 +650,7 @@ async function loadRounds() {
         if (rounds.length === 0) {
             select.innerHTML = '<option>暂无轮次</option>';
             const container = document.getElementById('groups-container');
-            if (container) container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">暂无分组，请先在管理后台点击"随机分组"</div>';
+            if (container) container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-300">暂无分组，请先在管理后台点击"随机分组"</div>';
             return;
         }
         select.innerHTML = rounds.map(r =>
@@ -665,12 +665,12 @@ async function loadGroups() {
     if (!roundId) return;
     const container = document.getElementById('groups-container');
     if (!container) return;
-    container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">加载中...</div>';
+    container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-300">加载中...</div>';
     try {
         const res = await fetch(`${API_BASE}/api/groups/${roundId}`);
         const groups = await res.json();
         if (groups.length === 0) {
-            container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">该轮次暂无分组数据</div>';
+            container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-300">该轮次暂无分组数据</div>';
             return;
         }
         const medalColors = ['bg-yellow-500/20 text-yellow-400', 'bg-gray-400/20 text-gray-300', 'bg-orange-600/20 text-orange-400', 'bg-blue-500/20 text-blue-400'];
@@ -685,7 +685,7 @@ async function loadGroups() {
             html += `<div class="col-span-full mb-2 mt-4"><span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-green-900/60 text-green-300 border border-green-500/30">💬 微信区 · 共${wxGroups.length}组</span></div>`;
             html += wxGroups.map(g => renderGroupCard(g, medalColors)).join('');
         }
-        container.innerHTML = html || '<div class="col-span-full text-center py-12 text-gray-500">该轮次暂无分组数据</div>';
+        container.innerHTML = html || '<div class="col-span-full text-center py-12 text-gray-300">该轮次暂无分组数据</div>';
     } catch (err) {
         container.innerHTML = '<div class="col-span-full text-center py-8 text-red-400">加载失败</div>';
     }
@@ -706,7 +706,7 @@ async function loadGroupsForUpload() {
         const pd = document.getElementById('placement-select');
         if (pd) pd.innerHTML = [1,2,3,4,5,6,7,8].map(n => `
             <button type="button" onclick="selectPlacement(${n})"
-                class="placement-btn border border-gray-700 rounded-lg py-2 text-sm hover:border-yellow-500 hover:text-yellow-400 transition-all duration-200"
+                class="placement-btn border border-yellow-500/15 rounded-lg py-2 text-sm hover:border-yellow-500 hover:text-yellow-400 transition-all duration-200"
                 data-placement="${n}">第${n}名</button>
         `).join('');
     } catch (err) { console.error('初始化上传页面失败:', err); }
@@ -774,12 +774,12 @@ async function loadGroupPlayersForUpload() {
 function selectPlacement(n) {
     document.querySelectorAll('.placement-btn').forEach(b => {
         b.classList.remove('bg-yellow-500', 'text-black', 'border-yellow-500', 'font-bold');
-        b.classList.add('border-gray-700');
+        b.classList.add('border-yellow-500/15');
     });
     const btn = document.querySelector(`.placement-btn[data-placement="${n}"]`);
     if (btn) {
         btn.classList.add('bg-yellow-500', 'text-black', 'border-yellow-500', 'font-bold');
-        btn.classList.remove('border-gray-700');
+        btn.classList.remove('border-yellow-500/15');
     }
 }
 
@@ -934,18 +934,18 @@ async function loadBracket(region) {
         qqBtn.className = 'px-3 py-1 rounded text-xs font-bold ' +
             (currentBracketRegion === 'QQ'
                 ? 'bg-blue-900/50 text-blue-300 border border-blue-700'
-                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-blue-600');
+                : 'bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-blue-600');
     }
     if (wxBtn) {
         wxBtn.className = 'px-3 py-1 rounded text-xs font-bold ' +
             (currentBracketRegion === 'WeChat'
                 ? 'bg-green-900/50 text-green-300 border border-green-700'
-                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-green-600');
+                : 'bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-green-600');
     }
 
     const container = document.getElementById('bracket-content');
     if (!container) return;
-    container.innerHTML = '<div class="text-center py-8 text-gray-500">加载中...</div>';
+    container.innerHTML = '<div class="text-center py-8 text-gray-300">加载中...</div>';
 
     try {
         // 获取赛段选项
@@ -967,7 +967,7 @@ async function loadBracket(region) {
         if (!res.ok) throw new Error(rows.error || '加载失败');
 
         if (rows.length === 0) {
-            container.innerHTML = '<div class="text-center text-gray-500 py-8">暂无晋级玩家</div>';
+            container.innerHTML = '<div class="text-center text-gray-300 py-8">暂无晋级玩家</div>';
             return;
         }
 
@@ -991,9 +991,9 @@ async function loadBracket(region) {
                 <div class="space-y-2">`;
             players.forEach(p => {
                 html += `<div class="flex items-center gap-3 p-3 ${bgColor} rounded-lg border">
-                    <span class="text-xs text-gray-500 w-8">#${p.placement}</span>
+                    <span class="text-xs text-gray-300 w-8">#${p.placement}</span>
                     <span class="font-bold text-sm text-white">${p.game_nickname || '-'}</span>
-                    <span class="text-xs text-gray-500">ID: ${p.game_uid || '-'}</span>
+                    <span class="text-xs text-gray-300">ID: ${p.game_uid || '-'}</span>
                     <span class="text-xs px-2 py-0.5 rounded ${badgeColor}">${p.region || ''}</span>
                 </div>`;
             });
@@ -1052,11 +1052,11 @@ function showGroupPreview(result) {
         overlay.id = 'group-preview-overlay';
         overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden';
         overlay.innerHTML = ''
-            + '<div class="bg-gray-900 border border-yellow-500/30 rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto">'
+            + '<div class="bg-[#0f0f18] border border-yellow-500/30 rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto">'
             + '<div class="text-xl font-bold text-yellow-400 mb-4">🎲 分组预览</div>'
             + '<div id="preview-content" class="space-y-4"></div>'
             + '<div class="flex gap-3 justify-end mt-6">'
-            + '<button onclick="closeGroupPreview()" class="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 text-sm hover:bg-gray-600 transition-colors">取消</button>'
+            + '<button onclick="closeGroupPreview()" class="px-4 py-2 rounded-lg bg-[#1e1e2a] text-gray-300 text-sm hover:bg-[#252530] transition-colors">取消</button>'
             + '<button onclick="confirmGroups()" class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-400 transition-colors">✅ 确认应用</button>'
             + '</div>'
             + '</div>';
@@ -1075,7 +1075,7 @@ function showGroupPreview(result) {
             html += '<div class="text-sm text-blue-300 font-medium mb-1">第 ' + g.group_number + ' 组</div>';
             html += '<div class="space-y-1">';
             g.players.forEach(p => {
-                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-500">(' + (p.game_uid || '未知') + ')</span></div>';
+                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-300">(' + (p.game_uid || '未知') + ')</span></div>';
             });
             html += '</div></div>';
         });
@@ -1090,7 +1090,7 @@ function showGroupPreview(result) {
             html += '<div class="text-sm text-green-300 font-medium mb-1">第 ' + g.group_number + ' 组</div>';
             html += '<div class="space-y-1">';
             g.players.forEach(p => {
-                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-500">(' + (p.game_uid || '未知') + ')</span></div>';
+                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-300">(' + (p.game_uid || '未知') + ')</span></div>';
             });
             html += '</div></div>';
         });
@@ -1184,7 +1184,7 @@ async function clearPlayers() {
 async function loadStageConfig() {
     const container = document.getElementById('stage-config-container');
     if (!container) return;
-    container.innerHTML = '<div class="text-center py-4 text-gray-500">加载中...</div>';
+    container.innerHTML = '<div class="text-center py-4 text-gray-300">加载中...</div>';
     
     try {
         const res = await fetch(`${API_BASE}/api/stages`);
@@ -1192,16 +1192,16 @@ async function loadStageConfig() {
         
         let html = '<div class="space-y-4">';
         stages.forEach((s, idx) => {
-            html += '<div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">';
+            html += '<div class="bg-[#161620]/50 rounded-lg p-4 border border-yellow-500/15">';
             html += '<div class="font-medium text-yellow-400 mb-2">' + (idx + 1) + '. ' + s.stage_name + '</div>';
             html += '<div class="grid grid-cols-2 gap-3">';
-            html += '<div><label class="text-xs text-gray-400">每组人数</label>';
-            html += '<input type="number" value="' + (s.players_per_group || 8) + '" id="stage-ppg-' + s.id + '" class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"></div>';
-            html += '<div><label class="text-xs text-gray-400">每组晋级</label>';
-            html += '<input type="number" value="' + (s.advance_count || 4) + '" id="stage-adv-' + s.id + '" class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"></div>';
+            html += '<div><label class="text-xs text-gray-300">每组人数</label>';
+            html += '<input type="number" value="' + (s.players_per_group || 8) + '" id="stage-ppg-' + s.id + '" class="w-full bg-[#1e1e2a] border border-yellow-500/20 rounded px-2 py-1 text-sm text-white"></div>';
+            html += '<div><label class="text-xs text-gray-300">每组晋级</label>';
+            html += '<input type="number" value="' + (s.advance_count || 4) + '" id="stage-adv-' + s.id + '" class="w-full bg-[#1e1e2a] border border-yellow-500/20 rounded px-2 py-1 text-sm text-white"></div>';
             html += '</div>';
-            html += '<div class="mt-2"><label class="text-xs text-gray-400">截止时间</label>';
-            html += '<input type="datetime-local" value="' + (s.deadline || '') + '" id="stage-deadline-' + s.id + '" class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"></div>';
+            html += '<div class="mt-2"><label class="text-xs text-gray-300">截止时间</label>';
+            html += '<input type="datetime-local" value="' + (s.deadline || '') + '" id="stage-deadline-' + s.id + '" class="w-full bg-[#1e1e2a] border border-yellow-500/20 rounded px-2 py-1 text-sm text-white"></div>';
             html += '</div>';
         });
         html += '</div>';
@@ -1308,10 +1308,10 @@ async function verifyScreenshot(groupPlayerId) {
             
             if (!verified) {
                 html += `
-                    <div class="text-xs mt-2 p-3 bg-gray-900/50 rounded text-left">
+                    <div class="text-xs mt-2 p-3 bg-[#0f0f18]/50 rounded text-left">
                         <div class="text-yellow-300 mb-2">验证未通过，可能是以下原因：</div>
                         <div class="text-gray-300 mb-3 pl-2">• 截图不清晰或不是战绩截图<br>• 截图中的排名与报名信息不符<br>• 截图中的昵称与报名信息不符</div>
-                        <div class="text-yellow-300 border-t border-gray-700 pt-2">若验证未通过或登记有误，<br>请单独联系【洛】【魄罗】【妮蔻】协助登记</div>
+                        <div class="text-yellow-300 border-t border-yellow-500/15 pt-2">若验证未通过或登记有误，<br>请单独联系【洛】【魄罗】【妮蔻】协助登记</div>
                     </div>`;
             }
             
@@ -1321,14 +1321,14 @@ async function verifyScreenshot(groupPlayerId) {
                 if (isAdmin) {
                     // 管理员：显示手动通过/拒绝按钮
                     html += `
-                        <div class="mt-2 pt-2 border-t border-gray-700">
+                        <div class="mt-2 pt-2 border-t border-yellow-500/15">
                             <button onclick="manualVerify(${groupPlayerId}, true)" class="px-3 py-1 bg-green-900/50 text-green-300 rounded hover:bg-green-800/50 transition-colors text-xs mr-2">管理员手动通过</button>
                             <button onclick="manualVerify(${groupPlayerId}, false)" class="px-3 py-1 bg-red-900/50 text-red-300 rounded hover:bg-red-800/50 transition-colors text-xs">手动拒绝</button>
                         </div>`;
                 } else {
                     // 玩家：显示提交审核按钮
                     html += `
-                        <div class="mt-2 pt-2 border-t border-gray-700">
+                        <div class="mt-2 pt-2 border-t border-yellow-500/15">
                             <button onclick="submitForReview(${groupPlayerId})" class="px-3 py-1 bg-yellow-900/50 text-yellow-300 rounded hover:bg-yellow-800/50 transition-colors text-xs">📤 上传信息至管理员审核</button>
                         </div>`;
                 }
@@ -1395,7 +1395,7 @@ async function loadPendingReviews() {
         if (!res.ok) throw new Error(rows.error);
 
         if (rows.length === 0) {
-            container.innerHTML = '<div class="text-center text-gray-500 py-8">暂无待审核的战绩</div>';
+            container.innerHTML = '<div class="text-center text-gray-300 py-8">暂无待审核的战绩</div>';
             return;
         }
 
@@ -1403,19 +1403,19 @@ async function loadPendingReviews() {
         rows.forEach(row => {
             const regionLabel = row.region === 'QQ' ? 'QQ区' : '微信区';
             html += `
-                <div class="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+                <div class="bg-[#161620]/50 rounded-lg p-3 border border-yellow-500/15">
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-2">
                             <span class="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300">${regionLabel}</span>
                             <span class="font-bold text-sm">${row.game_nickname || '-'}</span>
-                            <span class="text-xs text-gray-500">ID:${row.game_uid || '-'}</span>
+                            <span class="text-xs text-gray-300">ID:${row.game_uid || '-'}</span>
                         </div>
-                        <span class="text-xs text-gray-400">第${row.group_number || '?'}组 · ${row.round_name || ''}</span>
+                        <span class="text-xs text-gray-300">第${row.group_number || '?'}组 · ${row.round_name || ''}</span>
                     </div>
                     <div class="flex items-center gap-3 mb-2">
-                        <span class="text-xs text-gray-400">报名排名: <span class="text-yellow-400 font-bold">第${row.placement || '?'}名</span></span>
+                        <span class="text-xs text-gray-300">报名排名: <span class="text-yellow-400 font-bold">第${row.placement || '?'}名</span></span>
                     </div>
-                    ${row.screenshot_path ? `<div class="mb-2"><img src="${fixScreenshotUrl(row.screenshot_path)}" class="max-h-40 rounded border border-gray-700 cursor-pointer hover:border-yellow-500 transition-colors" onclick="window.open(this.src)"></div>` : '<div class="text-xs text-red-400 mb-2">无截图</div>'}
+                    ${row.screenshot_path ? `<div class="mb-2"><img src="${fixScreenshotUrl(row.screenshot_path)}" class="max-h-40 rounded border border-yellow-500/15 cursor-pointer hover:border-yellow-500 transition-colors" onclick="window.open(this.src)"></div>` : '<div class="text-xs text-red-400 mb-2">无截图</div>'}
                     <div class="flex gap-2">
                         <button onclick="reviewResult(${row.group_player_id}, 'approve')" class="flex-1 px-3 py-1.5 bg-green-900/50 text-green-300 rounded hover:bg-green-800/50 transition-colors text-xs font-bold">✅ 通过</button>
                         <button onclick="reviewResult(${row.group_player_id}, 'reject')" class="flex-1 px-3 py-1.5 bg-red-900/50 text-red-300 rounded hover:bg-red-800/50 transition-colors text-xs font-bold">❌ 拒绝</button>

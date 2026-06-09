@@ -68,17 +68,17 @@ function filterGroupsByRegion(region) {
     if (allBtn) {
         allBtn.className = region === 'all'
             ? "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
-            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700 hover:border-yellow-500/50 hover:text-yellow-400";
+            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-yellow-500/50 hover:text-yellow-400";
     }
     if (qqBtn) {
         qqBtn.className = region === 'QQ'
             ? "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30"
-            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700 hover:border-blue-500/50 hover:text-blue-400";
+            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-blue-500/50 hover:text-blue-400";
     }
     if (wxBtn) {
         wxBtn.className = region === 'WeChat'
             ? "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30"
-            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700 hover:border-green-500/50 hover:text-green-400";
+            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-green-500/50 hover:text-green-400";
     }
 
     // 重新渲染分组
@@ -109,7 +109,7 @@ function renderGroupCard(g, medalColors) {
     }
     var finishedBadge = "";
     if (groupStatus === 'finished') {
-        finishedBadge = '<span class="text-xs bg-gray-700/60 text-gray-400 px-2 py-0.5 rounded font-medium ml-1">已完赛</span>';
+        finishedBadge = '<span class="text-xs bg-[#1e1e2a]/60 text-gray-300 px-2 py-0.5 rounded font-medium ml-1">已完赛</span>';
     }
 
     // QQ群号输入框（标题栏中间）
@@ -120,19 +120,19 @@ function renderGroupCard(g, medalColors) {
     var qqGroupHtml = "";
     if (qqGroupLocked && !isAdmin) {
         // 已锁定，非管理员只能查看
-        qqGroupHtml = '<span class="text-xs text-gray-400 bg-gray-900/60 px-2 py-0.5 rounded font-mono">群:' + qqGroupNum + '</span>';
+        qqGroupHtml = '<span class="text-xs text-gray-300 bg-[#0f0f18]/60 px-2 py-0.5 rounded font-mono">群:' + qqGroupNum + '</span>';
     } else if (qqGroupLocked && isAdmin) {
         // 已锁定，管理员可修改（需二次确认）
         qqGroupHtml = '<input type="text" value="' + qqGroupNum + '" placeholder="QQ群号"'
             + ' onkeydown="if(event.key===\'Enter\'){event.stopPropagation();handleQqGroupAdminEdit(' + g.id + ',this)}"'
             + ' onblur="handleQqGroupAdminEdit(' + g.id + ',this)"'
-            + ' class="qq-group-input w-28 bg-gray-700/60 border border-yellow-500/30 rounded px-2 py-0.5 text-xs text-white text-center font-mono placeholder-gray-500 focus:outline-none focus:border-yellow-500" />';
+            + ' class="qq-group-input w-28 bg-[#1e1e2a]/60 border border-yellow-500/30 rounded px-2 py-0.5 text-xs text-white text-center font-mono placeholder-gray-500 focus:outline-none focus:border-yellow-500" />';
     } else {
         // 未锁定，填写后二次确认并锁定
         qqGroupHtml = '<input type="text" value="' + qqGroupNum + '" placeholder="填写QQ群号"'
             + ' onkeydown="if(event.key===\'Enter\'){event.stopPropagation();handleQqGroupInput(' + g.id + ',this)}"'
             + ' onblur="if(this.value.trim()){handleQqGroupInput(' + g.id + ',this)}"'
-            + ' class="qq-group-input w-28 bg-gray-700/60 border border-gray-600 rounded px-2 py-0.5 text-xs text-white text-center font-mono placeholder-gray-500 focus:outline-none focus:border-yellow-500" />';
+            + ' class="qq-group-input w-28 bg-[#1e1e2a]/60 border border-yellow-500/20 rounded px-2 py-0.5 text-xs text-white text-center font-mono placeholder-gray-500 focus:outline-none focus:border-yellow-500" />';
     }
 
     // 自动淘汰按钮（仅管理员可见，且组未完赛）
@@ -149,7 +149,7 @@ function renderGroupCard(g, medalColors) {
     if (g.players && g.players.length > 0) {
         for (var pi = 0; pi < g.players.length; pi++) {
             var gp = g.players[pi];
-            var rankCls = "bg-gray-800/50 text-gray-500";
+            var rankCls = "bg-[#161620]/50 text-gray-300";
             if (gp.placement && gp.placement <= 4) {
                 rankCls = medalColors[(gp.placement || 1) - 1];
             }
@@ -169,19 +169,19 @@ function renderGroupCard(g, medalColors) {
                 promoteBadge = '<span class="text-yellow-400 text-xs"' + promoteClick + '>晋级</span>';
             } else if (gp.placement && gp.placement > 4) {
                 var promoteClick = isAdmin ? ' onclick="togglePromote(' + gp.id + ', ' + g.id + ', ' + gp.placement + ', this)" style="cursor:pointer;" title="点击切换晋级/淘汰"' : '';
-                promoteBadge = '<span class="text-gray-500 text-xs"' + promoteClick + '>淘汰</span>';
+                promoteBadge = '<span class="text-gray-300 text-xs"' + promoteClick + '>淘汰</span>';
             }
             // 名次圆圈：管理员可点击修改
             var rankDisplay = gp.placement ? gp.placement : "-";
             var rankClick = (isAdmin && gp.placement) ? ' onclick="editPlacement(' + gp.id + ', ' + g.id + ', ' + gp.placement + ', this)" style="cursor:pointer;" title="点击修改名次"' : '';
-            var submittedBadge = (gp.submitted === 1) ? '<span class="text-gray-400 text-xs bg-gray-800/50 px-2 py-0.5 rounded">已提交</span>' : "";
-            var circleCls = "bg-gray-800 text-gray-600";
+            var submittedBadge = (gp.submitted === 1) ? '<span class="text-gray-300 text-xs bg-[#161620]/50 px-2 py-0.5 rounded">已提交</span>' : "";
+            var circleCls = "bg-[#161620] text-gray-300";
             if (gp.placement) circleCls = rankCls;
 
             // 昵称编辑：仅管理员可编辑（使用 data- 属性存储 player_id，更可靠）
             var nicknameHtml = '';
             if (isAdmin) {
-                nicknameHtml = '<span class="nickname-edit cursor-pointer border-b border-dashed border-gray-500 hover:border-yellow-400 hover:text-yellow-300 transition-colors"'
+                nicknameHtml = '<span class="nickname-edit cursor-pointer border-b border-dashed border-yellow-500/30 hover:border-yellow-400 hover:text-yellow-300 transition-colors"'
                     + ' data-player-id="' + (gp.player_id || '') + '"'
                     + ' onclick="event.stopPropagation();editNickname(this)"'
                     + ' title="点击修改昵称">' + (gp.game_nickname || "") + '</span>';
@@ -189,12 +189,12 @@ function renderGroupCard(g, medalColors) {
                 nicknameHtml = '<span>' + (gp.game_nickname || "") + '</span>';
             }
 
-            playersHtml += '<div class="px-5 py-3 flex items-center justify-between hover:bg-gray-800/30 transition-colors">'
+            playersHtml += '<div class="px-5 py-3 flex items-center justify-between hover:bg-[#161620]/30 transition-colors">'
                 + '<div class="flex items-center gap-3">'
                 + '<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ' + circleCls + '"' + (rankClick || '') + '>' + rankDisplay + '</span>'
                 + '<div>'
                 + '<div class="text-white font-medium">' + nicknameHtml + '</div>'
-                + '<div class="text-xs text-gray-500 font-mono">ID: ' + (gp.game_uid || "") + '</div>'
+                + '<div class="text-xs text-gray-300 font-mono">ID: ' + (gp.game_uid || "") + '</div>'
                 + '</div>'
                 + '</div>'
                 + '<div class="flex items-center gap-2">'
@@ -205,7 +205,7 @@ function renderGroupCard(g, medalColors) {
                 + '</div>';
         }
     } else {
-        playersHtml = '<div class="px-5 py-8 text-center text-gray-500 text-sm">暂无玩家</div>';
+        playersHtml = '<div class="px-5 py-8 text-center text-gray-300 text-sm">暂无玩家</div>';
     }
 
     var cardBgCls = "";
@@ -213,17 +213,17 @@ function renderGroupCard(g, medalColors) {
         cardBgCls = "opacity-75";
     }
 
-    return '<div id="group-card-' + g.id + '" class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-gray-700 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + '">'
-        + '<div class="group-header bg-gray-800/80 px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-800/90 transition-colors" data-groupid="' + g.id + '">'
+    return '<div id="group-card-' + g.id + '" class="bg-gradient-to-br from-[#0f0f18] to-[#161620] rounded-2xl border border-yellow-500/15 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + '">'
+        + '<div class="group-header bg-[#161620]/80 px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-[#161620]/90 transition-colors" data-groupid="' + g.id + '">'
         + '<div class="flex items-center gap-3">'
         + '<div class="font-bold text-yellow-400 text-lg">第 ' + (g.display_number || g.group_number) + ' 组</div>'
         + regionBadge + finishedBadge
-        + '<svg id="chevron-' + g.id + '" class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>'
+        + '<svg id="chevron-' + g.id + '" class="w-4 h-4 text-gray-300 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>'
         + '</div>'
         + '<div class="flex items-center gap-2">'
         + qqGroupHtml
         + autoEliminateBtnHtml
-        + '<div class="text-xs text-gray-400 bg-gray-900 px-3 py-1 rounded-full">' + (g.player_count || g.players.length) + '/8 人</div>'
+        + '<div class="text-xs text-gray-300 bg-[#0f0f18] px-3 py-1 rounded-full">' + (g.player_count || g.players.length) + '/8 人</div>'
         + '</div>'
         + '</div>'
         + '<div id="group-players-' + g.id + '" class="divide-y divide-gray-800/50 hidden">'
@@ -244,8 +244,8 @@ function showImagePreview(url) {
         overlay.className = 'fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 hidden';
         overlay.innerHTML = ''
             + '<div class="relative max-w-4xl max-h-[90vh] w-full mx-4 flex flex-col items-center">'
-            + '<img id="image-preview-img" class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-gray-700" />'
-            + '<div class="mt-4 text-gray-400 text-sm">点击任意处关闭</div>'
+            + '<img id="image-preview-img" class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-yellow-500/15" />'
+            + '<div class="mt-4 text-gray-300 text-sm">点击任意处关闭</div>'
             + '</div>';
         document.body.appendChild(overlay);
         overlay.onclick = function() { overlay.classList.add('hidden'); };
@@ -402,11 +402,11 @@ function showQqGroupConfirm(message, onConfirm) {
         overlay.id = 'qq-group-confirm-overlay';
         overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50';
         overlay.innerHTML = ''
-            + '<div class="bg-gray-900 border border-yellow-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">'
+            + '<div class="bg-[#0f0f18] border border-yellow-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">'
             + '<div class="text-lg font-bold text-yellow-400 mb-3">⚠️ 确认QQ群号</div>'
             + '<div id="qq-group-confirm-msg" class="text-gray-200 text-sm mb-6 leading-relaxed"></div>'
             + '<div class="flex gap-3 justify-end">'
-            + '<button id="qq-group-confirm-cancel" class="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 text-sm hover:bg-gray-600 transition-colors">取消</button>'
+            + '<button id="qq-group-confirm-cancel" class="px-4 py-2 rounded-lg bg-[#1e1e2a] text-gray-300 text-sm hover:bg-[#252530] transition-colors">取消</button>'
             + '<button id="qq-group-confirm-ok" class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-400 transition-colors">确认保存</button>'
             + '</div>'
             + '</div>';
@@ -439,11 +439,11 @@ function showInputDialog(title, placeholder, defaultValue, onConfirm) {
         overlay.id = 'input-dialog-overlay';
         overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden';
         overlay.innerHTML = ''
-            + '<div class="bg-gray-900 border border-yellow-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">'
+            + '<div class="bg-[#0f0f18] border border-yellow-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">'
             + '<div id="input-dialog-title" class="text-lg font-bold text-yellow-400 mb-3"></div>'
-            + '<input id="input-dialog-field" type="text" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500 mb-6" />'
+            + '<input id="input-dialog-field" type="text" class="w-full bg-[#161620] border border-yellow-500/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500 mb-6" />'
             + '<div class="flex gap-3 justify-end">'
-            + '<button id="input-dialog-cancel" class="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 text-sm hover:bg-gray-600 transition-colors">取消</button>'
+            + '<button id="input-dialog-cancel" class="px-4 py-2 rounded-lg bg-[#1e1e2a] text-gray-300 text-sm hover:bg-[#252530] transition-colors">取消</button>'
             + '<button id="input-dialog-ok" class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-400 transition-colors">确认</button>'
             + '</div>'
             + '</div>';
@@ -548,7 +548,7 @@ function editNickname(spanEl) {
     var input = document.createElement('input');
     input.type = 'text';
     input.value = currentName;
-    input.className = 'bg-gray-700 border border-yellow-500 rounded px-2 py-0.5 text-sm text-white w-32 focus:outline-none';
+    input.className = 'bg-[#1e1e2a] border border-yellow-500 rounded px-2 py-0.5 text-sm text-white w-32 focus:outline-none';
     input.onclick = function(e) { e.stopPropagation(); };
 
     spanEl.parentNode.replaceChild(input, spanEl);
@@ -624,17 +624,17 @@ async function loadGroups() {
     var roundId = document.getElementById("round-select")?.value;
     if (!roundId) {
         var container = document.getElementById("groups-container");
-        if (container) container.innerHTML = '<div class="text-center py-12 text-gray-500">请先选择轮次</div>';
+        if (container) container.innerHTML = '<div class="text-center py-12 text-gray-300">请先选择轮次</div>';
         return;
     }
     var container = document.getElementById("groups-container");
     if (!container) return;
-    container.innerHTML = '<div class="text-center py-8 text-gray-500">加载中...</div>';
+    container.innerHTML = '<div class="text-center py-8 text-gray-300">加载中...</div>';
     try {
         var res = await fetch(API_BASE + "/api/groups/" + roundId);
         var groups = await res.json();
         if (!Array.isArray(groups) || groups.length === 0) {
-            container.innerHTML = '<div class="text-center py-12 text-gray-500">该轮次暂无分组数据</div>';
+            container.innerHTML = '<div class="text-center py-12 text-gray-300">该轮次暂无分组数据</div>';
             return;
         }
         groups.sort(function(a, b) { return a.group_number - b.group_number; });
@@ -658,7 +658,7 @@ async function loadGroups() {
         if (filteredGroups.length > 0) {
             html += filteredGroups.map(function(g) { return renderGroupCard(g, medalColors); }).join("");
         } else {
-            html = '<div class="text-center py-12 text-gray-500">该大区暂无分组数据</div>';
+            html = '<div class="text-center py-12 text-gray-300">该大区暂无分组数据</div>';
         }
         container.innerHTML = html;
 
@@ -731,7 +731,7 @@ async function loadRounds(seasonId) {
         if (rounds.length === 0) {
             sel.innerHTML = '<option value="">暂无轮次</option>';
             const container = document.getElementById("groups-container");
-            if (container) container.innerHTML = '<div class="text-center py-12 text-gray-500">该赛季暂无分组数据</div>';
+            if (container) container.innerHTML = '<div class="text-center py-12 text-gray-300">该赛季暂无分组数据</div>';
             return;
         }
         sel.innerHTML = rounds.map(r => '<option value="' + r.id + '">' + r.name + "</option>").join("");
@@ -801,7 +801,7 @@ function showSearchMsg(text, type) {
     el.className = "mt-2 text-sm py-2 px-3 rounded-lg ";
     if (type === "error") el.className += "bg-red-900/50 text-red-300";
     else if (type === "success") el.className += "bg-green-900/50 text-green-300";
-    else el.className += "bg-gray-900/50 text-gray-400";
+    else el.className += "bg-[#0f0f18]/50 text-gray-300";
 }
 
 console.log("[groups-enhanced.js] 加载完成！版本 20250606k");
