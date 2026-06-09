@@ -47,10 +47,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==================== Tab 切换 ====================
+let currentTab = null; // 记录当前激活的tab
+
 function switchTab(tabName) {
-    // 重置滚动位置，避免长页面切换后看不到内容
+    // 如果点击的是当前已激活的tab → 收起（toggle）
+    if (currentTab === tabName) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('tab-active');
+            b.classList.add('tab-inactive');
+        });
+        currentTab = null;
+        return;
+    }
+
+    // 否则：切换到新tab
+    currentTab = tabName;
     window.scrollTo({ top: 0, behavior: 'instant' });
-    
+
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
     document.querySelectorAll('.tab-btn').forEach(b => {
         b.classList.remove('tab-active');
