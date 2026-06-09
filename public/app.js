@@ -4,6 +4,16 @@ const API_BASE = (location.hostname === 'localhost' || location.port === '3001')
     ? 'http://localhost:3001'   // 本地开发：后端在 3001 端口
     : '';                        // Netlify：同源访问 /api/...
 
+// 包装 fetch，自动携带 cookie（解决管理员认证问题）
+const _originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    const isApiCall = typeof url === 'string' && (url.startsWith(API_BASE) || url.startsWith('/api/'));
+    if (isApiCall) {
+        options = { ...options, credentials: 'include' };
+    }
+    return _originalFetch.call(this, url, options);
+};
+
 // 辅助函数：修复截图 URL（兼容本地路径和远程 URL）
 function fixScreenshotUrl(path) {
     if (!path) return '';

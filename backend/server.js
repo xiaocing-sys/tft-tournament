@@ -65,7 +65,8 @@ function requireAdmin(req, res, next) {
         return next(); // 已登录
     }
     // 未登录，返回 401
-    if (req.path.startsWith('/api/')) {
+    const url = req.originalUrl || req.path || '';
+    if (url.startsWith('/api/')) {
         return res.status(401).json({ success: false, error: '未登录' });
     }
     res.redirect('/login.html');
