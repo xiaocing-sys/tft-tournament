@@ -79,13 +79,22 @@ let pool = null;  // 提升到模块级作用域，供 PostgreSQL schema 初始�
 
 if (process.env.DATABASE_URL) {
     // Netlify / 生产环境：使用 PostgreSQL
+    console.log('[DB] 检测到 DATABASE_URL，准备连接 PostgreSQL...');
     dbMode = 'pg';
-    const { Pool } = require('pg');
-    pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
-    });
-    console.log('[DB] 使用 PostgreSQL 模式（Neon）');
+    try {
+        const { Pool } = require('pg');
+        console.log('[DB] pg 模块加载成功');
+        pool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        console.log('[DB] Pool 创建成功');
+        console.log('[DB] 使用 PostgreSQL 模式（Neon）');
+    } catch (e) {
+        console.error('[DB] ❌ PostgreSQL 初始化失败:', e.message);
+        dbMode = 'error';
+        db = null;
+    }
 
     // 包装 pg 为类 sqlite3 接口
     db = {
@@ -126,8 +135,10 @@ if (process.env.DATABASE_URL) {
     db = null;
 } else {
     // 本地开发：使用 SQLite（使用 eval 避免 Vercel 构建时静态分析到 sqlite3）
+    console.log('[DB] 本地开发模式，准备加载 SQLite...');
     try {
         const sqlite3 = eval("require('sqlite3')").verbose();
+        console.log('[DB] sqlite3 模块加载成功');
         const DB_PATH = path.join(__dirname, 'tournament.db');
         const UPLOADS_DIR = path.join(__dirname, 'uploads');
         db = new sqlite3.Database(DB_PATH, (err) => {
