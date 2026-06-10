@@ -56,7 +56,7 @@ const ADMIN_PASSWORDS = [
     process.env.ADMIN_PASSWORD_2 || 'admin456',
     process.env.ADMIN_PASSWORD_3 || 'admin789'
 ];
-app.use(cookieParser('tft-admin-secret'));
+app.use(cookieParser());
 
 // 验证管理员登录状态的中间件
 function requireAdmin(req, res, next) {
@@ -144,6 +144,31 @@ if (process.env.DATABASE_URL) {
 
 app.use(cors());
 app.use(express.json());
+
+// ==================== 健康检查 API（不依赖数据库）====================
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        success: true, 
+        message: 'API 正常工作',
+        dbMode: dbMode,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ==================== Vercel 路径修复中间件 ====================
+// Vercel 路由 /api/* 到 api/index.js 时，可能会去掉 /api 前缀
+// 这个中间件在 Vercel 环境下自动修复路径
+if (process.env.VERCEL) {
+    app.use((req, res, next) => {
+        if (!req.path.startsWith('/api/')) {
+            req.url = '/api' + req.url;
+            req.path = '/api' + req.path;
+            console.log('[Vercel] 路径已修复:', req.url);
+        }
+        next();
+    });
+    console.log('[Vercel] 路径修复中间件已启用');
+}
 // ==================== 管理员登录 API ====================
 app.post('/api/admin/login', (req, res) => {
     console.log('[登录] 收到登录请求');
