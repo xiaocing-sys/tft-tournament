@@ -146,10 +146,16 @@ app.use(cors());
 app.use(express.json());
 // ==================== 管理员登录 API ====================
 app.post('/api/admin/login', (req, res) => {
+    console.log('[登录] 收到登录请求');
     const { password } = req.body;
+    console.log('[登录] 密码长度:', password ? password.length : 0);
+    
     const idx = ADMIN_PASSWORDS.indexOf(password);
+    console.log('[登录] 密码匹配索引:', idx);
+    
     if (idx !== -1) {
         const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+        console.log('[登录] 登录成功，设置 cookie，secure:', isSecure);
         res.cookie('admin_token', 'admin_auth_' + idx + '_' + Date.now(), { 
             httpOnly: true, 
             maxAge: 7*24*60*60*1000,
@@ -158,6 +164,7 @@ app.post('/api/admin/login', (req, res) => {
         });
         res.json({ success: true, adminIndex: idx + 1 });
     } else {
+        console.log('[登录] 密码错误');
         res.status(401).json({ success: false, error: '密码错误' });
     }
 });
