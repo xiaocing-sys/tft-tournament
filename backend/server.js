@@ -75,12 +75,13 @@ function requireAdmin(req, res, next) {
 // ==================== 数据库适配（SQLite 本地 / PostgreSQL Netlify）====================
 let db = null;
 let dbMode = 'sqlite';
+let pool = null;  // 提升到模块级作用域，供 PostgreSQL schema 初始化使用
 
 if (process.env.DATABASE_URL) {
     // Netlify / 生产环境：使用 PostgreSQL
     dbMode = 'pg';
     const { Pool } = require('pg');
-    const pool = new Pool({
+    pool = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false }
     });
@@ -356,7 +357,7 @@ if (dbMode === 'sqlite') {
             });
         }
     });
-} else {
+} else if (dbMode === 'pg' && pool) {
     console.log('[DB] PostgreSQL 模式：检查并初始化数据库表...');
     // PostgreSQL 模式：自动检查并创建表
     const schemaPath = path.join(__dirname, 'schema-postgres.sql');
@@ -379,6 +380,8 @@ if (dbMode === 'sqlite') {
     } else {
         console.log('[DB] 未找到 schema-postgres.sql，跳过自动初始化');
     }
+} else {
+    console.log('[DB] 数据库模式为 ' + dbMode + '，跳过 schema 初始化');
 }
 
 // ========== 赛季数据迁移 ==========
