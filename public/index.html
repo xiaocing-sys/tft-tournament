@@ -60,7 +60,6 @@
             <button onclick="switchTab('import-results')" id="tab-import-results" class="tab-btn px-4 py-2 text-sm font-medium tab-inactive">📊 导入战绩</button>
             <button onclick="switchTab('bracket')" id="tab-bracket" class="tab-btn px-4 py-2 text-sm font-medium tab-inactive">🎖️ 晋级榜</button>
             <button onclick="switchTab('datasheet')" id="tab-datasheet" class="tab-btn px-4 py-2 text-sm font-medium tab-inactive">📋 数据底表</button>
-            <button onclick="switchTab('admin')" id="tab-admin" class="tab-btn px-4 py-2 text-sm font-medium tab-inactive">⚙️ 管理后台</button>
         </div>
     </div>
 
@@ -428,6 +427,19 @@
                 </div>
             </div>
 
+            <!-- 首次报名随机分组 -->
+            <div class="mb-6 bg-[#0f0f18] rounded-xl p-4 border border-yellow-500/20">
+                <h3 class="text-lg font-semibold text-yellow-400 mb-3">🎲 首次报名随机分组</h3>
+                <p class="text-gray-300 text-sm mb-3">对首次报名参与第一轮比赛的玩家进行随机分组</p>
+                <div class="flex items-center gap-3">
+                    <button onclick="generateInitialGroups()" id="generate-initial-btn"
+                        class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg text-sm font-bold text-white">
+                        🎲 首次报名随机分组
+                    </button>
+                    <span class="text-xs text-gray-400">* 分组完成后可在下方查看对战表</span>
+                </div>
+            </div>
+
             <!-- 大区筛选 -->
             <div class="flex items-center gap-2 mb-4">
                 <span class="text-sm text-gray-300">大区筛选:</span>
@@ -458,7 +470,15 @@
 
             <div id="groups-container" class="grid grid-cols-1 gap-6 max-w-2xl mx-auto">
                 <div class="text-center py-12 text-gray-400">
-                    暂无分组，请先在管理后台生成分组
+                    暂无分组，请先使用"首次报名随机分组"
+                </div>
+            </div>
+
+            <!-- 轮次状态管理 -->
+            <div class="mt-8 max-w-2xl mx-auto">
+                <h3 class="text-lg font-bold text-yellow-400 mb-3">📅 轮次管理</h3>
+                <div id="rounds-status-container" class="space-y-3">
+                    <div class="text-center text-gray-400 text-sm py-4">加载中...</div>
                 </div>
             </div>
         </div>
@@ -522,7 +542,6 @@
         </div>
 
         <!-- Tab: 晋级榜 -->
-        <!-- 晋级榜（按大区展示） -->
         <div id="panel-bracket" class="tab-panel hidden space-y-6">
             <div class="flex items-center gap-3 mb-4">
                 <h3 class="text-lg font-bold">🏆 晋级榜</h3>
@@ -530,9 +549,42 @@
                     <button id="bracket-tab-qq" onclick="loadBracket('QQ')" class="px-3 py-1 rounded text-xs font-bold bg-blue-900/50 text-blue-300 border border-blue-700">QQ区</button>
                     <button id="bracket-tab-wx" onclick="loadBracket('WeChat')" class="px-3 py-1 rounded text-xs font-bold bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-green-600">微信区</button>
                 </div>
-                <select id="bracket-stage" onchange="loadBracket()" class="ml-auto px-2 py-1 bg-[#161620] border border-yellow-500/15 rounded text-xs text-gray-300"></select>
+                <select id="bracket-round-select" onchange="loadBracket()" class="ml-4 px-2 py-1 bg-[#161620] border border-yellow-500/15 rounded text-xs text-white">
+                    <option value="">全部轮次</option>
+                </select>
                 <button onclick="loadBracket()" class="text-yellow-400 hover:text-yellow-300 text-sm">🔄 刷新</button>
             </div>
+
+            <!-- 生成晋级名单 -->
+            <div class="mb-6 bg-[#0f0f18] rounded-xl p-4 border border-yellow-500/20">
+                <h4 class="text-md font-bold text-yellow-400 mb-3">⚡ 生成晋级名单</h4>
+                <p class="text-gray-300 text-xs mb-3">各组成绩提交后，点击生成晋级名单（每组前N名）</p>
+                <div class="flex items-center gap-3">
+                    <select id="advance-round-select" class="px-2 py-1 bg-[#161620] border border-yellow-500/15 rounded text-xs text-white">
+                        <option value="">-- 选择轮次 --</option>
+                    </select>
+                    <button onclick="generateAdvancements()" id="advance-btn"
+                        class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm font-bold text-white">
+                        ⬆️ 生成晋级名单
+                    </button>
+                </div>
+            </div>
+
+            <!-- 晋级选手随机分组 -->
+            <div class="mb-6 bg-[#0f0f18] rounded-xl p-4 border border-yellow-500/20">
+                <h4 class="text-md font-bold text-yellow-400 mb-3">🎲 晋级选手随机分组</h4>
+                <p class="text-gray-300 text-xs mb-3">将每个轮次的晋级选手进行随机分组，不同轮次互不干扰</p>
+                <div class="flex items-center gap-3">
+                    <select id="adv-group-round-select" class="px-2 py-1 bg-[#161620] border border-yellow-500/15 rounded text-xs text-white">
+                        <option value="">-- 选择轮次 --</option>
+                    </select>
+                    <button onclick="generateAdvancedGroups()" id="adv-group-btn"
+                        class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-bold text-white">
+                        🎲 晋级选手随机分组
+                    </button>
+                </div>
+            </div>
+
             <div id="bracket-content" class="space-y-6"></div>
         </div>
 
@@ -608,99 +660,7 @@
         </div>
 
         <!-- Tab: 管理后台 -->
-        <div id="panel-admin" class="tab-panel hidden">
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-[#0f0f18] rounded-2xl p-6 border border-yellow-500/10">
-                    <h2 class="text-xl font-bold mb-6">⚙️ 管理后台</h2>
-
-                    <!-- 管理员账户 -->
-                    <div class="mb-8 flex justify-between items-center">
-                        <div class="text-sm text-gray-300">当前身份：<span class="text-yellow-400 font-bold">管理员</span></div>
-                        <button onclick="adminLogout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-                            🚪 退出管理员模式
-                        </button>
-                    </div>
-
-                    <!-- 报名管理 -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-yellow-400 mb-3">📋 报名管理</h3>
-                        <div class="flex flex-wrap gap-3">
-                            <button onclick="toggleRegistration(true)" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm font-medium">
-                                开启报名
-                            </button>
-                            <button onclick="toggleRegistration(false)" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium">
-                                关闭报名
-                            </button>
-                            <button onclick="clearPlayers()" class="bg-[#1e1e2a] hover:bg-[#252530] px-4 py-2 rounded-lg text-sm font-medium">
-                                🗑️ 清空报名
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 分组管理 -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-blue-400 mb-3">🏆 分组管理</h3>
-                        <p class="text-gray-300 text-sm mb-3">关闭报名后，点击以下按钮进行随机分组（八人一队）</p>
-                        <button onclick="generateGroups()" id="generate-btn"
-                            class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg text-sm font-bold">
-                            🎲 随机分组
-                        </button>
-                    </div>
-
-                    <!-- 赛段配置 -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-yellow-400 mb-3">📅 赛段配置</h3>
-                        <p class="text-gray-300 text-sm mb-3">配置各赛段的参数和截止时间</p>
-                        <div id="stage-config-container" class="space-y-4">
-                            <button onclick="loadStageConfig()" class="px-4 py-2 bg-[#1e1e2a] hover:bg-[#252530] rounded-lg text-sm">
-                                加载赛段配置
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 晋级管理 -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-green-400 mb-3">🎖️ 晋级管理</h3>
-                        <p class="text-gray-300 text-sm mb-3">各组成绩提交后，点击生成晋级名单（每组前四）</p>
-                        <button onclick="generateAdvancements()" id="advance-btn"
-                            class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg text-sm font-bold">
-                            ⬆️ 生成晋级名单
-                        </button>
-                    </div>
-
-                    <!-- 赛事控制 -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-purple-400 mb-3">🎮 赛事控制</h3>
-                        <div class="flex flex-wrap gap-3">
-                            <button onclick="completeRound()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium">
-                                完成当前轮次
-                            </button>
-                            <button onclick="resetTournament()" class="bg-red-900 hover:bg-red-800 px-4 py-2 rounded-lg text-sm font-medium">
-                                🔄 重置赛事
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="admin-msg" class="mt-6 hidden text-center text-sm py-3 rounded-lg"></div>
-
-                    <!-- 战绩审核 -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                            <span>📋</span> 战绩审核
-                            <span class="text-xs font-normal text-gray-400">（OCR验证未通过需人工审核）</span>
-                        </h3>
-                        <div id="admin-review-list" class="space-y-3">
-                            <div class="text-center text-gray-400 py-4">点击上方"刷新审核列表"按钮加载</div>
-                        </div>
-                        <div class="mt-3 flex gap-2">
-                            <button onclick="loadPendingReviews()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                                🔄 刷新审核列表
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div id="panel-admin" class="tab-panel hid        </div>
 
     </div>
 
@@ -731,7 +691,7 @@
             }, 500);
         });
     </script>
-    <script src="app.js?v=20250609e"></script>
+    <script src="app.js?v=20250610a"></script>
     <script src="groups-enhanced.js?v=20250609c"></script>
 </body>
 </html>

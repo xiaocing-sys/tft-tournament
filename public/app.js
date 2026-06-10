@@ -667,13 +667,16 @@ async function loadRounds() {
         if (rounds.length === 0) {
             select.innerHTML = '<option>暂无轮次</option>';
             const container = document.getElementById('groups-container');
-            if (container) container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-300">暂无分组，请先在管理后台点击"随机分组"</div>';
+            if (container) container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-300">暂无分组，请先使用"首次报名随机分组"</div>';
             return;
         }
         select.innerHTML = rounds.map(r =>
-            `<option value="${r.id}">${r.name} 【${r.status === 'active' ? '🔥 进行中' : r.status === 'completed' ? '✅ 已结束' : '⏳ 待开始'}】</option>`
+            `<option value="${r.id}">${r.name} 【${r.status === 'active' ? '🔥 进行中' : r.status === 'completed' ? '✅ 已完成' : '⏳ 待开始'}】</option>`
         ).join('');
         loadGroups();
+        
+        // 同时刷新轮次状态管理
+        if (typeof loadRoundsStatus === 'function') loadRoundsStatus();
     } catch (err) { console.error('加载轮次失败:', err); }
 }
 
@@ -1576,24 +1579,366 @@ async function adminLogout() {
     }
 }
 
-// ==================== 初始化 ====================
-window.addEventListener('DOMContentLoaded', () => {
-    // 初始化 currentTab：找到默认激活的 tab
-    const activeBtn = document.querySelector('.tab-btn.tab-active');
-    if (activeBtn) {
-        const id = activeBtn.id; // e.g. "tab-import-players"
-        currentTab = id.replace('tab-', '');
+// ==================== 首次报名随机分组（分组对战Tab）====================
+async function generateInitialGroups() {
+    const btn = document.getElementById('generate-initial-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '🎲 生成预览中...'; }
+    try {
+        // 第一步：生成预览（preview=true，默认）
+        const res = await fetch(`${API_BASE}/api/groups/generate?preview=true`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ round_number: 1 })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        
+        // 显示预览
+        showInitialGroupPreview(result);
+        showToast(`🎉 预览已生成！共 ${result.qq_group_count + result.wx_group_count} 组`, '🎉');
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
     }
+    if (btn) { btn.disabled = false; btn.textContent = '🎲 首次报名随机分组'; }
+}
 
-    loadStats();
-    loadConfig();
-    startCountdown();
-    updateHeaderStatus();
-    // 每 60 秒刷新一次报名统计（仅在报名 Tab 打开时）
-    setInterval(() => {
-        const activeTab = document.querySelector('.tab-panel:not(.hidden)');
-        if (activeTab && activeTab.id === 'panel-register') {
-            loadStats();
+function showInitialGroupPreview(result) {
+    let overlay = document.getElementById('initial-group-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'initial-group-overlay';
+        overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden';
+        overlay.innerHTML = ''
+            + '<div class="bg-[#0f0f18] border border-yellow-500/30 rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto">'
+            + '<div class="flex items-center justify-between mb-4">'
+            + '<div class="text-xl font-bold text-yellow-400">🎲 首次分组预览</div>'
+            + '<div class="flex gap-3">'
+            + '<button onclick="closeInitialGroupPreview()" class="px-4 py-2 rounded-lg bg-[#1e1e2a] text-gray-300 text-sm hover:bg-[#252530] transition-colors">取消</button>'
+            + '<button onclick="confirmInitialGroups()" class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-400 transition-colors">✅ 确认应用</button>'
+            + '</div>'
+            + '</div>'
+            + '<div id="initial-preview-content" class="space-y-4"></div>'
+            + '</div>';
+        document.body.appendChild(overlay);
+    }
+    
+    const content = document.getElementById('initial-preview-content');
+    let html = '';
+    
+    if (result.qq_groups && result.qq_groups.length > 0) {
+        html += '<div class="mb-4"><h3 class="text-blue-400 font-bold mb-2">QQ区（' + result.qq_group_count + '组）</h3>';
+        result.qq_groups.forEach(g => {
+            html += '<div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 mb-2">';
+            html += '<div class="text-sm text-blue-300 font-medium mb-1">第 ' + g.group_number + ' 组</div>';
+            html += '<div class="space-y-1">';
+            g.players.forEach(p => {
+                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-300">(' + (p.game_uid || '未知') + ')</span></div>';
+            });
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+    
+    if (result.wx_groups && result.wx_groups.length > 0) {
+        html += '<div class="mb-4"><h3 class="text-green-400 font-bold mb-2">微信区（' + result.wx_group_count + '组）</h3>';
+        result.wx_groups.forEach(g => {
+            html += '<div class="bg-green-900/20 border border-green-500/30 rounded-lg p-3 mb-2">';
+            html += '<div class="text-sm text-green-300 font-medium mb-1">第 ' + g.group_number + ' 组</div>';
+            html += '<div class="space-y-1">';
+            g.players.forEach(p => {
+                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-300">(' + (p.game_uid || '未知') + ')</span></div>';
+            });
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+    
+    content.innerHTML = html;
+    overlay.classList.remove('hidden');
+}
+
+function closeInitialGroupPreview() {
+    const overlay = document.getElementById('initial-group-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+async function confirmInitialGroups() {
+    const btn = document.querySelector('#initial-group-overlay button[onclick="confirmInitialGroups()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '应用中...'; }
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/groups/generate?confirm=true`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ round_number: 1 })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        
+        closeInitialGroupPreview();
+        showToast(`✅ 首次分组已应用！共 ${result.qq_group_count + result.wx_group_count} 组`, '✅');
+        
+        // 刷新分组页面
+        if (typeof loadGroups === 'function') loadGroups();
+        if (typeof loadRounds === 'function') loadRounds();
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    }
+}
+
+// ==================== 晋级选手随机分组（晋级榜Tab）====================
+async function generateAdvancedGroups() {
+    const roundId = document.getElementById('adv-group-round-select')?.value;
+    if (!roundId) { showToast('请先选择轮次', '⚠️'); return; }
+    
+    const btn = document.getElementById('adv-group-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '🎲 生成预览中...'; }
+    try {
+        const res = await fetch(`${API_BASE}/api/groups/generate?preview=true`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ round_id: parseInt(roundId, 10) })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        
+        showAdvancedGroupPreview(result, roundId);
+        showToast(`🎉 预览已生成！共 ${result.qq_group_count + result.wx_group_count} 组`, '🎉');
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '🎲 晋级选手随机分组'; }
+}
+
+function showAdvancedGroupPreview(result, roundId) {
+    let overlay = document.getElementById('adv-group-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'adv-group-overlay';
+        overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden';
+        overlay.innerHTML = ''
+            + '<div class="bg-[#0f0f18] border border-yellow-500/30 rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto">'
+            + '<div class="flex items-center justify-between mb-4">'
+            + '<div class="text-xl font-bold text-yellow-400">🎲 晋级选手分组预览</div>'
+            + '<div class="flex gap-3">'
+            + '<button onclick="closeAdvancedGroupPreview()" class="px-4 py-2 rounded-lg bg-[#1e1e2a] text-gray-300 text-sm hover:bg-[#252530] transition-colors">取消</button>'
+            + '<button onclick="confirmAdvancedGroups()" class="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors">✅ 确认应用</button>'
+            + '</div>'
+            + '</div>'
+            + '<div id="adv-preview-content" class="space-y-4"></div>'
+            + '</div>';
+        document.body.appendChild(overlay);
+    }
+    
+    const content = document.getElementById('adv-preview-content');
+    let html = '';
+    
+    if (result.qq_groups && result.qq_groups.length > 0) {
+        html += '<div class="mb-4"><h3 class="text-blue-400 font-bold mb-2">QQ区（' + result.qq_group_count + '组）</h3>';
+        result.qq_groups.forEach(g => {
+            html += '<div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 mb-2">';
+            html += '<div class="text-sm text-blue-300 font-medium mb-1">第 ' + g.group_number + ' 组</div>';
+            html += '<div class="space-y-1">';
+            g.players.forEach(p => {
+                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-300">(' + (p.game_uid || '未知') + ')</span></div>';
+            });
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+    
+    if (result.wx_groups && result.wx_groups.length > 0) {
+        html += '<div class="mb-4"><h3 class="text-green-400 font-bold mb-2">微信区（' + result.wx_group_count + '组）</h3>';
+        result.wx_groups.forEach(g => {
+            html += '<div class="bg-green-900/20 border border-green-500/30 rounded-lg p-3 mb-2">';
+            html += '<div class="text-sm text-green-300 font-medium mb-1">第 ' + g.group_number + ' 组</div>';
+            html += '<div class="space-y-1">';
+            g.players.forEach(p => {
+                html += '<div class="text-xs text-gray-300">' + (p.game_nickname || '未知') + ' <span class="text-gray-300">(' + (p.game_uid || '未知') + ')</span></div>';
+            });
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+    
+    content.innerHTML = html;
+    overlay.classList.remove('hidden');
+    
+    // 保存 roundId 供确认时使用
+    overlay.dataset.roundId = roundId;
+}
+
+function closeAdvancedGroupPreview() {
+    const overlay = document.getElementById('adv-group-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+async function confirmAdvancedGroups() {
+    const overlay = document.getElementById('adv-group-overlay');
+    const roundId = overlay?.dataset?.roundId;
+    if (!roundId) { showToast('轮次信息丢失', '❌'); return; }
+    
+    const btn = document.querySelector('#adv-group-overlay button[onclick="confirmAdvancedGroups()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '应用中...'; }
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/groups/generate?confirm=true`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ round_id: parseInt(roundId, 10) })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        
+        closeAdvancedGroupPreview();
+        showToast(`✅ 晋级选手分组已应用！共 ${result.qq_group_count + result.wx_group_count} 组`, '✅');
+        
+        // 刷新晋级榜
+        if (typeof loadBracket === 'function') loadBracket();
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    }
+}
+
+// ==================== 轮次状态管理（分组对战Tab）====================
+async function loadRoundsStatus() {
+    const container = document.getElementById('rounds-status-container');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">加载中...</div>';
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/rounds`);
+        const rounds = await res.json();
+        
+        if (rounds.length === 0) {
+            container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">暂无轮次数据</div>';
+            return;
         }
-    }, 60000);  // ← 改为 60 秒
-});
+        
+        let html = '';
+        rounds.forEach(r => {
+            const isCompleted = r.status === 'completed';
+            html += '<div class="bg-[#0f0f18] rounded-lg p-4 border border-yellow-500/15 flex items-center justify-between">';
+            html += '<div class="flex items-center gap-3">';
+            html += '<div class="text-sm font-bold ' + (isCompleted ? 'text-green-400' : 'text-yellow-400') + '">' + r.name + '</div>';
+            html += '<div class="text-xs text-gray-400">' + (isCompleted ? '已完成' : '进行中') + '</div>';
+            html += '</div>';
+            html += '<div class="flex items-center gap-2">';
+            if (!isCompleted) {
+                html += '<button onclick="completeRound(' + r.id + ')" class="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white">✅ 标记为完成</button>';
+            } else {
+                html += '<button onclick="reopenRound(' + r.id + ')" class="px-3 py-1 rounded-lg bg-[#1e1e2a] hover:bg-[#252530] text-xs text-gray-300">🔄 重新开启</button>';
+            }
+            html += '</div>';
+            html += '</div>';
+        });
+        
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">加载失败：' + err.message + '</div>';
+    }
+}
+
+async function completeRound(roundId) {
+    if (!confirm('确定要标记该轮次为已完成吗？')) return;
+    try {
+        await fetch(`${API_BASE}/api/rounds/${roundId}/complete`, { method: 'POST' });
+        showToast('✅ 轮次已标记为完成', '✅');
+        loadRoundsStatus();
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    }
+}
+
+async function reopenRound(roundId) {
+    if (!confirm('确定要重新开启该轮次吗？')) return;
+    try {
+        await fetch(`${API_BASE}/api/rounds/${roundId}/reopen`, { method: 'POST' });
+        showToast('✅ 轮次已重新开启', '✅');
+        loadRoundsStatus();
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    }
+}
+
+// ==================== 生成晋级名单（晋级榜Tab）====================
+async function generateAdvancements() {
+    const roundId = document.getElementById('advance-round-select')?.value;
+    if (!roundId) { showToast('请先选择轮次', '⚠️'); return; }
+    
+    try {
+        const rRes = await fetch(`${API_BASE}/api/rounds/${roundId}`);
+        const round = await rRes.json();
+        
+        const gRes = await fetch(`${API_BASE}/api/groups/${roundId}`);
+        const groups = await gRes.json();
+        
+        if (groups.length === 0) throw new Error('该轮次没有分组数据');
+        
+        let total = 0;
+        for (const g of groups) {
+            const res = await fetch(`${API_BASE}/api/advancements/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ group_id: g.id, round_id: parseInt(roundId, 10) })
+            });
+            const result = await res.json();
+            if (res.ok) total += result.advanced || 0;
+        }
+        showToast(`⬆️ 晋级名单已生成！共 ${total} 人晋级`, '🎉');
+        
+        // 刷新晋级榜
+        if (typeof loadBracket === 'function') loadBracket();
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    }
+}
+
+// ==================== 页面加载时初始化 ====================
+// 在分组对战Tab打开时，加载轮次状态
+const _origSwitchTab = switchTab;
+switchTab = function(tabName) {
+    _origSwitchTab(tabName);
+    if (tabName === 'groups') {
+        if (typeof loadRoundsStatus === 'function') loadRoundsStatus();
+    }
+    if (tabName === 'bracket') {
+        if (typeof loadRoundsForBracket === 'function') loadRoundsForBracket();
+        if (typeof loadRoundsForAdvance === 'function') loadRoundsForAdvance();
+        if (typeof loadRoundsForAdvGroup === 'function') loadRoundsForAdvGroup();
+    }
+};
+
+// 加载轮次到晋级榜的筛选下拉框
+async function loadRoundsForBracket() {
+    const select = document.getElementById('bracket-round-select');
+    if (!select) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/rounds`);
+        const rounds = await res.json();
+        select.innerHTML = '<option value="">全部轮次</option>' +
+            rounds.map(r => `<option value="${r.id}">${r.name} (${r.status === 'active' ? '进行中' : r.status === 'completed' ? '已完成' : '待开始'})</option>`).join('');
+    } catch (err) { console.error('加载轮次失败:', err); }
+}
+
+async function loadRoundsForAdvance() {
+    const select = document.getElementById('advance-round-select');
+    if (!select) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/rounds`);
+        const rounds = await res.json();
+        select.innerHTML = '<option value="">-- 选择轮次 --</option>' +
+            rounds.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+    } catch (err) { console.error('加载轮次失败:', err); }
+}
+
+async function loadRoundsForAdvGroup() {
+    const select = document.getElementById('adv-group-round-select');
+    if (!select) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/rounds`);
+        const rounds = await res.json();
+        select.innerHTML = '<option value="">-- 选择轮次 --</option>' +
+            rounds.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+    } catch (err) { console.error('加载轮次失败:', err); }
+}
