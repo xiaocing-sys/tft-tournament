@@ -117,16 +117,28 @@ if (process.env.DATABASE_URL) {
         serialize(cb) { if (cb) cb(); },
         close(cb) { pool.end().then(() => { if (cb) cb(); }); }
     };
+} else if (process.env.VERCEL) {
+    // Vercel 环境但没有 DATABASE_URL：给出明确错误
+    console.error('[DB] ❌ Vercel 环境但未设置 DATABASE_URL 环境变量！');
+    console.error('[DB] 请在 Vercel 控制台设置 DATABASE_URL (Neon PostgreSQL)');
+    dbMode = 'error';
+    db = null;
 } else {
     // 本地开发：使用 SQLite（使用 eval 避免 Vercel 构建时静态分析到 sqlite3）
-    const sqlite3 = eval("require('sqlite3')").verbose();
-    const DB_PATH = path.join(__dirname, 'tournament.db');
-    const UPLOADS_DIR = path.join(__dirname, 'uploads');
-    db = new sqlite3.Database(DB_PATH, (err) => {
-        if (err) console.error('数据库连接失败:', err);
-        else console.log('[DB] 使用 SQLite 模式（本地开发）');
-    });
-    app.use('/uploads', express.static(UPLOADS_DIR));
+    try {
+        const sqlite3 = eval("require('sqlite3')").verbose();
+        const DB_PATH = path.join(__dirname, 'tournament.db');
+        const UPLOADS_DIR = path.join(__dirname, 'uploads');
+        db = new sqlite3.Database(DB_PATH, (err) => {
+            if (err) console.error('[DB] SQLite 连接失败:', err);
+            else console.log('[DB] 使用 SQLite 模式（本地开发）');
+        });
+        app.use('/uploads', express.static(UPLOADS_DIR));
+    } catch (e) {
+        console.error('[DB] SQLite 加载失败:', e.message);
+        dbMode = 'error';
+        db = null;
+    }
 }
 
 app.use(cors());
