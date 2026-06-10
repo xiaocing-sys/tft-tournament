@@ -1178,104 +1178,7 @@ async function generateAdvancements() {
     }
 }
 
-async function completeRound() {
-    if (!confirm('确定要结束当前轮次吗？结束后将进入下一轮。')) return;
-    try {
-        const rRes = await fetch(`${API_BASE}/api/rounds/current`);
-        const currentRound = await rRes.json();
-        if (!currentRound) throw new Error('没有进行中的轮次');
-        await fetch(`${API_BASE}/api/rounds/${currentRound.id}/complete`, { method: 'POST' });
-        showToast('✅ 当前轮次已结束', '✅');
-        showMsg('admin-msg', '轮次已结束。如需进行下一轮，请点击"随机分组"为新晋级选手分组。', 'success');
-    } catch (err) {
-        showMsg('admin-msg', '❌ ' + err.message, 'error');
-    }
-}
 
-async function clearPlayers() {
-    if (!confirm('⚠️ 确定要清空所有报名数据吗？此操作不可恢复！')) return;
-    try {
-        await fetch(`${API_BASE}/api/players`, { method: 'DELETE' });
-        showToast('🗑️ 所有报名数据已清空', '✅');
-        loadStats();
-    } catch (err) { showToast('操作失败', '❌'); }
-}
-
-// ==================== 赛段配置 ====================
-
-async function loadStageConfig() {
-    const container = document.getElementById('stage-config-container');
-    if (!container) return;
-    container.innerHTML = '<div class="text-center py-4 text-gray-300">加载中...</div>';
-    
-    try {
-        const res = await fetch(`${API_BASE}/api/stages`);
-        const stages = await res.json();
-        
-        let html = '<div class="space-y-4">';
-        stages.forEach((s, idx) => {
-            html += '<div class="bg-[#161620]/50 rounded-lg p-4 border border-yellow-500/15">';
-            html += '<div class="font-medium text-yellow-400 mb-2">' + (idx + 1) + '. ' + s.stage_name + '</div>';
-            html += '<div class="grid grid-cols-2 gap-3">';
-            html += '<div><label class="text-xs text-gray-300">每组人数</label>';
-            html += '<input type="number" value="' + (s.players_per_group || 8) + '" id="stage-ppg-' + s.id + '" class="w-full bg-[#1e1e2a] border border-yellow-500/20 rounded px-2 py-1 text-sm text-white"></div>';
-            html += '<div><label class="text-xs text-gray-300">每组晋级</label>';
-            html += '<input type="number" value="' + (s.advance_count || 4) + '" id="stage-adv-' + s.id + '" class="w-full bg-[#1e1e2a] border border-yellow-500/20 rounded px-2 py-1 text-sm text-white"></div>';
-            html += '</div>';
-            html += '<div class="mt-2"><label class="text-xs text-gray-300">截止时间</label>';
-            html += '<input type="datetime-local" value="' + (s.deadline || '') + '" id="stage-deadline-' + s.id + '" class="w-full bg-[#1e1e2a] border border-yellow-500/20 rounded px-2 py-1 text-sm text-white"></div>';
-            html += '</div>';
-        });
-        html += '</div>';
-        html += '<button onclick="saveStageConfig()" class="mt-4 px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors">💾 保存配置</button>';
-        
-        container.innerHTML = html;
-    } catch (err) {
-        container.innerHTML = '<div class="text-center py-4 text-red-400">加载失败：' + err.message + '</div>';
-    }
-}
-
-async function saveStageConfig() {
-    try {
-        const res = await fetch(`${API_BASE}/api/stages`);
-        const stages = await res.json();
-        
-        const updatedStages = stages.map(s => {
-            return {
-                stage_index: s.stage_index,
-                stage_name: s.stage_name,
-                players_per_group: parseInt(document.getElementById('stage-ppg-' + s.id)?.value || '8'),
-                advance_count: parseInt(document.getElementById('stage-adv-' + s.id)?.value || '4'),
-                description: s.description || '',
-                deadline: document.getElementById('stage-deadline-' + s.id)?.value || ''
-            };
-        });
-        
-        const saveRes = await fetch(`${API_BASE}/api/stages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stages: updatedStages })
-        });
-        
-        const result = await saveRes.json();
-        if (!saveRes.ok) throw new Error(result.error);
-        
-        showToast('✅ 赛段配置已保存', '✅');
-        switchTab('admin');
-    } catch (err) {
-        showToast('保存失败：' + err.message, '❌');
-    }
-}
-
-async function resetTournament() {
-    if (!confirm('⚠️ 确定要重置整个赛事吗？所有数据（报名、分组、战绩、晋级）将被清空！')) return;
-    try {
-        await fetch(`${API_BASE}/api/tournament/reset`, { method: 'POST' });
-        showToast('🔄 赛事已重置', '✅');
-        showMsg('admin-msg', '赛事已重置，可以重新报名。', 'success');
-        loadStats();
-    } catch (err) { showMsg('admin-msg', '❌ ' + err.message, 'error'); }
-}
 
 async function updateHeaderStatus() {
     try {
@@ -1408,69 +1311,10 @@ async function submitForReview(groupPlayerId) {
 }
 
 // 管理员加载待审核列表
-async function loadPendingReviews() {
-    const container = document.getElementById('admin-review-list');
-    if (!container) return;
 
-    try {
-        const res = await fetch(`${API_BASE}/api/results/pending-review`);
-        const rows = await res.json();
-        if (!res.ok) throw new Error(rows.error);
-
-        if (rows.length === 0) {
-            container.innerHTML = '<div class="text-center text-gray-300 py-8">暂无待审核的战绩</div>';
-            return;
-        }
-
-        let html = '<div class="space-y-3">';
-        rows.forEach(row => {
-            const regionLabel = row.region === 'QQ' ? 'QQ区' : '微信区';
-            html += `
-                <div class="bg-[#161620]/50 rounded-lg p-3 border border-yellow-500/15">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300">${regionLabel}</span>
-                            <span class="font-bold text-sm">${row.game_nickname || '-'}</span>
-                            <span class="text-xs text-gray-300">ID:${row.game_uid || '-'}</span>
-                        </div>
-                        <span class="text-xs text-gray-300">第${row.group_number || '?'}组 · ${row.round_name || ''}</span>
-                    </div>
-                    <div class="flex items-center gap-3 mb-2">
-                        <span class="text-xs text-gray-300">报名排名: <span class="text-yellow-400 font-bold">第${row.placement || '?'}名</span></span>
-                    </div>
-                    ${row.screenshot_path ? `<div class="mb-2"><img src="${fixScreenshotUrl(row.screenshot_path)}" class="max-h-40 rounded border border-yellow-500/15 cursor-pointer hover:border-yellow-500 transition-colors" onclick="window.open(this.src)"></div>` : '<div class="text-xs text-red-400 mb-2">无截图</div>'}
-                    <div class="flex gap-2">
-                        <button onclick="reviewResult(${row.group_player_id}, 'approve')" class="flex-1 px-3 py-1.5 bg-green-900/50 text-green-300 rounded hover:bg-green-800/50 transition-colors text-xs font-bold">✅ 通过</button>
-                        <button onclick="reviewResult(${row.group_player_id}, 'reject')" class="flex-1 px-3 py-1.5 bg-red-900/50 text-red-300 rounded hover:bg-red-800/50 transition-colors text-xs font-bold">❌ 拒绝</button>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        container.innerHTML = html;
-    } catch (err) {
-        console.error('加载待审核列表失败:', err);
-        container.innerHTML = '<div class="text-center text-red-400 py-8">加载失败: ' + err.message + '</div>';
-    }
-}
 
 // 管理员审核战绩
-async function reviewResult(groupPlayerId, action) {
-    try {
-        const res = await fetch(`${API_BASE}/api/results/${groupPlayerId}/review`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: action })
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
-        showToast(result.message, action === 'approve' ? '✅' : '❌');
-        loadPendingReviews(); // 刷新列表
-        loadGroups(); // 刷新分组
-    } catch (err) {
-        showToast('审核失败: ' + err.message, '❌');
-    }
-}
+
 
 // ==================== CSV 导入功能 ====================
 async function importPlayers() {
