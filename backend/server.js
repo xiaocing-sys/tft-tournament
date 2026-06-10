@@ -1319,20 +1319,20 @@ app.post('/api/admin/group-players/:id/status', (req, res) => {
     });
 });
 
-// ==================== 启动服务器 ====================
+// ==================== 启动服务器（兼容本地和 Vercel）====================
 
-// 托管前端静态文件（放在所有 API 路由之后）
-app.use(express.static(path.join(__dirname, '../public')));
-// 所有其他 GET 请求返回 index.html（SPA 支持）
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
-});
+// 托管前端静态文件（仅本地开发时启用，Vercel 会自动处理静态文件）
+if (!process.env.VERCEL) {
+    app.use(express.static(path.join(__dirname, '../public')));
+    // 所有其他 GET 请求返回 index.html（SPA 支持）
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../public/index.html'));
+    });
+}
 
-// ==================== 启动服务器（兼容本地和 Netlify）====================
-
-// Netlify Functions 导出（必须在 listen 之前）
+// Vercel Serverless Functions 导出（必须在 listen 之前）
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = app;  // 导出 app，供 netlify/functions/api.js 使用
+    module.exports = app;  // 导出 app，供 api/index.js 使用
 }
 
 // 本地开发时启动服务器
