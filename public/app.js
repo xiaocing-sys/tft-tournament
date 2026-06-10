@@ -968,19 +968,13 @@ async function loadBracket(region) {
     container.innerHTML = '<div class="text-center py-8 text-gray-300">加载中...</div>';
 
     try {
-        // 获取赛段选项
-        const sRes = await fetch(`${API_BASE}/api/stages`);
-        const stages = await sRes.json();
-        const stageSelect = document.getElementById('bracket-stage');
-        if (stageSelect) {
-            stageSelect.innerHTML = '<option value="">全部赛段</option>' +
-                stages.map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
-        }
+        // 获取选中的轮次
+        const roundSelect = document.getElementById('bracket-round-select');
+        const selectedRoundId = roundSelect ? roundSelect.value : '';
 
         const params = new URLSearchParams();
         params.append('region', currentBracketRegion);
-        const selectedStage = stageSelect ? stageSelect.value : '';
-        if (selectedStage) params.append('stage', selectedStage);
+        if (selectedRoundId) params.append('round_id', selectedRoundId);
 
         const res = await fetch(`${API_BASE}/api/advancements?${params.toString()}`);
         const rows = await res.json();
@@ -991,12 +985,12 @@ async function loadBracket(region) {
             return;
         }
 
-        // 按赛段分组展示
-        const byStage = {};
+        // 按轮次分组展示
+        const byRound = {};
         rows.forEach(r => {
-            const stage = r.from_stage_name || '海选赛';
-            if (!byStage[stage]) byStage[stage] = [];
-            byStage[stage].push(r);
+            const roundName = r.round_name || `轮次${r.from_round_id}`;
+            if (!byRound[roundName]) byRound[roundName] = [];
+            byRound[roundName].push(r);
         });
 
         let html = '';
@@ -1005,9 +999,9 @@ async function loadBracket(region) {
         const textColor = currentBracketRegion === 'QQ' ? 'text-blue-300' : 'text-green-300';
         const badgeColor = currentBracketRegion === 'QQ' ? 'bg-blue-800/50 text-blue-400' : 'bg-green-800/50 text-green-400';
 
-        for (const [stage, players] of Object.entries(byStage)) {
+        for (const [roundName, players] of Object.entries(byRound)) {
             html += `<div class="mb-6">
-                <h4 class="font-bold text-md mb-3 ${textColor}">${stage} — ${regionLabel}（${players.length}人晋级）</h4>
+                <h4 class="font-bold text-md mb-3 ${textColor}">${roundName} — ${regionLabel}（${players.length}人晋级）</h4>
                 <div class="space-y-2">`;
             players.forEach(p => {
                 html += `<div class="flex items-center gap-3 p-3 ${bgColor} rounded-lg border">
