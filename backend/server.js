@@ -149,13 +149,23 @@ app.post('/api/admin/login', (req, res) => {
     const { password } = req.body;
     const idx = ADMIN_PASSWORDS.indexOf(password);
     if (idx !== -1) {
-        res.cookie('admin_token', 'admin_auth_' + idx + '_' + Date.now(), { httpOnly: true, maxAge: 7*24*60*60*1000 });
+        const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+        res.cookie('admin_token', 'admin_auth_' + idx + '_' + Date.now(), { 
+            httpOnly: true, 
+            maxAge: 7*24*60*60*1000,
+            secure: isSecure,
+            sameSite: isSecure ? 'none' : 'lax'
+        });
         res.json({ success: true, adminIndex: idx + 1 });
     } else {
         res.status(401).json({ success: false, error: '密码错误' });
     }
 });
-app.post('/api/admin/logout', (req, res) => { res.clearCookie('admin_token'); res.json({ success: true }); });
+app.post('/api/admin/logout', (req, res) => { 
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    res.clearCookie('admin_token', { secure: isSecure, sameSite: isSecure ? 'none' : 'lax' }); 
+    res.json({ success: true }); 
+});
 app.get('/api/admin/check', (req, res) => {
     const token = req.cookies && req.cookies.admin_token;
     const loggedIn = token && token.startsWith('admin_auth_');
