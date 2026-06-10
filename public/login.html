@@ -135,6 +135,34 @@
             color: #6b7280;
             font-size: 12px;
         }
+        .debug-info {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(234, 179, 8, 0.1);
+            color: #9ca3af;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 12px;
+            font-family: monospace;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .test-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.2);
+            border-radius: 10px;
+            color: #eab308;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }
+        .test-btn:hover {
+            background: rgba(234, 179, 8, 0.2);
+        }
         /* 底部金色装饰线 */
         .login-container::after {
             content: '';
@@ -164,11 +192,59 @@
             <button type="submit" class="login-btn">登 录</button>
         </form>
         <div class="hint">默认密码：admin123（建议修改）</div>
+        <button type="button" class="test-btn" id="testApiBtn">🔍 测试 API 连接</button>
+        <div class="debug-info" id="debugInfo"></div>
     </div>
 
     <script>
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('errorMessage');
+        const testApiBtn = document.getElementById('testApiBtn');
+        const debugInfo = document.getElementById('debugInfo');
+
+        // 显示调试信息
+        function showDebug(msg) {
+            debugInfo.style.display = 'block';
+            const time = new Date().toLocaleTimeString();
+            debugInfo.innerHTML += '<div>[' + time + '] ' + msg + '</div>';
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+
+        // 测试 API 连接
+        testApiBtn.addEventListener('click', async () => {
+            debugInfo.innerHTML = '';
+            showDebug('🚀 开始测试 API 连接...');
+            showDebug('📡 请求地址: ' + window.location.origin + '/api/admin/login');
+            
+            try {
+                showDebug('📤 发送 POST 请求...');
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ password: 'admin123' })
+                });
+                
+                showDebug('📥 收到响应！');
+                showDebug('📊 状态码: ' + res.status + ' (' + res.statusText + ')');
+                showDebug('📋 响应头: ' + JSON.stringify([...res.headers.entries()]));
+                
+                const data = await res.json();
+                showDebug('📦 响应数据: ' + JSON.stringify(data));
+                
+                if (data.success) {
+                    showDebug('✅ 登录成功！3秒后跳转...');
+                    setTimeout(() => { window.location.href = '/'; }, 3000);
+                } else {
+                    showDebug('❌ 登录失败: ' + (data.error || '未知错误'));
+                }
+            } catch (err) {
+                showDebug('❌ 网络错误: ' + err.message);
+                showDebug('💡 可能原因: CORS 错误 / 服务器未启动 / 网络连接失败');
+                errorMessage.textContent = '网络错误：' + err.message;
+                errorMessage.style.display = 'block';
+            }
+        });
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -179,7 +255,7 @@
             errorMessage.textContent = '';
 
             try {
-                console.log('[登录] 正在发送登录请求...');
+                showDebug('[登录] 正在发送登录请求...');
                 const res = await fetch('/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -187,12 +263,12 @@
                     body: JSON.stringify({ password })
                 });
                 
-                console.log('[登录] 响应状态码:', res.status);
+                showDebug('[登录] 响应状态码: ' + res.status);
                 const data = await res.json();
-                console.log('[登录] 响应数据:', data);
+                showDebug('[登录] 响应数据: ' + JSON.stringify(data));
 
                 if (data.success) {
-                    console.log('[登录] 登录成功，正在跳转...');
+                    showDebug('[登录] 登录成功，正在跳转...');
                     window.location.href = '/';
                 } else {
                     errorMessage.textContent = data.error || '登录失败（未知错误）';
