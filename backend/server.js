@@ -16,7 +16,7 @@ async function callLocalOCR(imageUrl) {
         throw new Error('本地 OCR 服务未配置（请设置 LOCAL_OCR_URL 环境变量）');
     }
     return new Promise((resolve, reject) => {
-        const postData = JSON.stringify({ image_url });
+        const postData = JSON.stringify({ image_url: imageUrl });
         const url = new URL('/ocr', LOCAL_OCR_URL);
         const options = {
             hostname: url.hostname,
