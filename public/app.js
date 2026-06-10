@@ -1070,12 +1070,14 @@ function showGroupPreview(result) {
         overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden';
         overlay.innerHTML = ''
             + '<div class="bg-[#0f0f18] border border-yellow-500/30 rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto">'
-            + '<div class="text-xl font-bold text-yellow-400 mb-4">🎲 分组预览</div>'
-            + '<div id="preview-content" class="space-y-4"></div>'
-            + '<div class="flex gap-3 justify-end mt-6">'
+            + '<div class="flex items-center justify-between mb-4">'
+            + '<div class="text-xl font-bold text-yellow-400">🎲 分组预览</div>'
+            + '<div class="flex gap-3">'
             + '<button onclick="closeGroupPreview()" class="px-4 py-2 rounded-lg bg-[#1e1e2a] text-gray-300 text-sm hover:bg-[#252530] transition-colors">取消</button>'
             + '<button onclick="confirmGroups()" class="px-4 py-2 rounded-lg bg-yellow-500 text-gray-900 text-sm font-bold hover:bg-yellow-400 transition-colors">✅ 确认应用</button>'
             + '</div>'
+            + '</div>'
+            + '<div id="preview-content" class="space-y-4"></div>'
             + '</div>';
         document.body.appendChild(overlay);
     }
@@ -1256,6 +1258,7 @@ async function saveStageConfig() {
         if (!saveRes.ok) throw new Error(result.error);
         
         showToast('✅ 赛段配置已保存', '✅');
+        switchTab('admin');
     } catch (err) {
         showToast('保存失败：' + err.message, '❌');
     }
