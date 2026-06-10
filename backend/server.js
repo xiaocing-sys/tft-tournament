@@ -6,6 +6,9 @@ const https = require('https');
 const http = require('http');
 const cookieParser = require('cookie-parser');
 
+console.log('[Server] server.js 开始加载，时间:', new Date().toISOString());
+const loadStart = Date.now();
+
 // ==================== 本地 OCR 服务配置 ====================
 // 通过环境变量配置本地 OCR 服务的公网地址（由 localtunnel 提供）
 const LOCAL_OCR_URL = process.env.LOCAL_OCR_URL || '';
@@ -80,15 +83,16 @@ let pool = null;  // 提升到模块级作用域，供 PostgreSQL schema 初始�
 if (process.env.DATABASE_URL) {
     // Netlify / 生产环境：使用 PostgreSQL
     console.log('[DB] 检测到 DATABASE_URL，准备连接 PostgreSQL...');
+    const dbStart = Date.now();
     dbMode = 'pg';
     try {
         const { Pool } = require('pg');
-        console.log('[DB] pg 模块加载成功');
+        console.log('[DB] pg 模块加载成功，耗时:', Date.now() - dbStart, 'ms');
         pool = new Pool({
             connectionString: process.env.DATABASE_URL,
             ssl: { rejectUnauthorized: false }
         });
-        console.log('[DB] Pool 创建成功');
+        console.log('[DB] Pool 创建成功，耗时:', Date.now() - dbStart, 'ms');
         console.log('[DB] 使用 PostgreSQL 模式（Neon）');
     } catch (e) {
         console.error('[DB] ❌ PostgreSQL 初始化失败:', e.message);
@@ -97,6 +101,7 @@ if (process.env.DATABASE_URL) {
     }
 
     // 包装 pg 为类 sqlite3 接口
+    console.log('[DB] 开始包装 pg 接口...');
     db = {
         _pgExec(sql, params, cb) {
             // 转换 ? 占位符为 $1, $2...
@@ -127,6 +132,7 @@ if (process.env.DATABASE_URL) {
         serialize(cb) { if (cb) cb(); },
         close(cb) { pool.end().then(() => { if (cb) cb(); }); }
     };
+    console.log('[DB] pg 接口包装完成，总耗时:', Date.now() - dbStart, 'ms');
 } else if (process.env.VERCEL) {
     // Vercel 环境但没有 DATABASE_URL：给出明确错误
     console.error('[DB] ❌ Vercel 环境但未设置 DATABASE_URL 环境变量！');
@@ -397,7 +403,7 @@ app.post('/api/admin/import/results', (req, res) => {
     });
 });
 
-// 初始化数据库（仅 SQLite 模式执行 schema）
+// 初始化数据库（改为异步，不阻塞模块加载）
 if (dbMode === 'sqlite') {
     db.serialize(() => {
         const schemaPath = path.join(__dirname, 'schema.sql');
@@ -411,28 +417,36 @@ if (dbMode === 'sqlite') {
         }
     });
 } else if (dbMode === 'pg' && pool) {
-    console.log('[DB] PostgreSQL 模式：检查并初始化数据库表...');
-    // PostgreSQL 模式：自动检查并创建表
-    const schemaPath = path.join(__dirname, 'schema-postgres.sql');
-    if (fs.existsSync(schemaPath)) {
-        const schema = fs.readFileSync(schemaPath, 'utf8');
-        // 分割 SQL 语句并执行
-        const statements = schema.split(';').filter(s => s.trim());
-        let completed = 0;
-        statements.forEach(stmt => {
-            pool.query(stmt, (err) => {
-                if (err && !err.message.includes('already exists')) {
-                    console.error('执行 schema 语句失败:', err.message);
-                }
-                completed++;
-                if (completed === statements.length) {
-                    console.log('[DB] PostgreSQL 数据库表初始化完成');
-                }
+    // 异步执行 PostgreSQL schema 初始化，不阻塞请求处理
+    setTimeout(() => {
+        console.log('[DB] 异步开始 PostgreSQL 数据库表初始化...');
+        const schemaStart = Date.now();
+        const schemaPath = path.join(__dirname, 'schema-postgres.sql');
+        if (fs.existsSync(schemaPath)) {
+            console.log('[DB] 找到 schema-postgres.sql，开始读取...');
+            const schema = fs.readFileSync(schemaPath, 'utf8');
+            console.log('[DB] schema 文件读取完成，大小:', schema.length, '字节');
+            const statements = schema.split(';').filter(s => s.trim());
+            console.log('[DB] 共', statements.length, '条 SQL 语句');
+            let completed = 0;
+            let errorCount = 0;
+            statements.forEach((stmt, idx) => {
+                pool.query(stmt, (err) => {
+                    if (err && !err.message.includes('already exists')) {
+                        errorCount++;
+                        console.error('执行 schema 语句失败:', err.message);
+                    }
+                    completed++;
+                    if (completed === statements.length) {
+                        console.log('[DB] PostgreSQL 数据库表初始化完成，耗时:', Date.now() - schemaStart, 'ms，错误数:', errorCount);
+                    }
+                });
             });
-        });
-    } else {
-        console.log('[DB] 未找到 schema-postgres.sql，跳过自动初始化');
-    }
+        } else {
+            console.log('[DB] 未找到 schema-postgres.sql，跳过自动初始化');
+        }
+    }, 0);
+    console.log('[DB] PostgreSQL schema 初始化已加入异步队列');
 } else {
     console.log('[DB] 数据库模式为 ' + dbMode + '，跳过 schema 初始化');
 }
@@ -1399,6 +1413,7 @@ if (!process.env.VERCEL) {
 }
 
 // Vercel Serverless Functions 导出（必须在 listen 之前）
+console.log('[Server] server.js 加载完成，总耗时:', Date.now() - loadStart, 'ms');
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = app;  // 导出 app，供 api/index.js 使用
 }
