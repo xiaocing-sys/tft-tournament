@@ -213,7 +213,7 @@ function renderGroupCard(g, medalColors) {
         cardBgCls = "opacity-75";
     }
 
-    return '<div id="group-card-' + g.id + '" class="bg-gradient-to-br from-[#0f0f18] to-[#161620] rounded-2xl border border-yellow-500/15 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + '">'
+    return '<div id="group-card-' + g.id + '" class="bg-gradient-to-br from-[#0f0f18] to-[#161620] rounded-2xl border border-yellow-500/15 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + ' flex-shrink-0">'
         + '<div class="group-header bg-[#161620]/80 px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-[#161620]/90 transition-colors" data-groupid="' + g.id + '">'
         + '<div class="flex items-center gap-3">'
         + '<div class="font-bold text-yellow-400 text-lg">第 ' + (g.display_number || g.group_number) + ' 组</div>'
