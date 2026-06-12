@@ -674,9 +674,6 @@ async function loadRounds() {
             `<option value="${r.id}">${r.name} 【${r.status === 'active' ? '🔥 进行中' : r.status === 'completed' ? '✅ 已完成' : '⏳ 待开始'}】</option>`
         ).join('');
         loadGroups();
-        
-        // 同时刷新轮次状态管理
-        if (typeof loadRoundsStatus === 'function') loadRoundsStatus();
     } catch (err) { console.error('加载轮次失败:', err); }
 }
 
@@ -1638,117 +1635,9 @@ async function confirmAdvancedGroups() {
     }
 }
 
-// ==================== 轮次状态管理（分组对战Tab）====================
-async function loadRoundsStatus() {
-    const container = document.getElementById('rounds-status-container');
-    if (!container) return;
-    container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">加载中...</div>';
-    
-    try {
-        const res = await fetch(`${API_BASE}/api/rounds`);
-        const rounds = await res.json();
-
-        if (!Array.isArray(rounds)) {
-            if (rounds.error === '未登录') {
-                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">🔒 请先登录管理员账号查看轮次管理</div>';
-            } else {
-                container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">加载失败：' + (rounds.error || '数据格式错误') + '</div>';
-            }
-            return;
-        }
-
-        if (rounds.length === 0) {
-            container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">暂无轮次数据</div>';
-            return;
-        }
-        
-        let html = '';
-        rounds.forEach(r => {
-            const isCompleted = r.status === 'completed';
-            html += '<div class="bg-[#0f0f18] rounded-lg p-4 border border-yellow-500/15 flex items-center justify-between">';
-            html += '<div class="flex items-center gap-3">';
-            html += '<div class="text-sm font-bold ' + (isCompleted ? 'text-green-400' : 'text-yellow-400') + '">' + r.name + '</div>';
-            html += '<div class="text-xs text-gray-400">' + (isCompleted ? '已完成' : '进行中') + '</div>';
-            html += '</div>';
-            html += '<div class="flex items-center gap-2">';
-            if (!isCompleted) {
-                html += '<button onclick="completeRound(' + r.id + ')" class="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white">✅ 标记为完成</button>';
-            } else {
-                html += '<button onclick="reopenRound(' + r.id + ')" class="px-3 py-1 rounded-lg bg-[#1e1e2a] hover:bg-[#252530] text-xs text-gray-300">🔄 重新开启</button>';
-            }
-            html += '</div>';
-            html += '</div>';
-        });
-        
-        container.innerHTML = html;
-    } catch (err) {
-        container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">加载失败：' + err.message + '</div>';
-    }
-}
-
-async function completeRound(roundId) {
-    if (!confirm('确定要标记该轮次为已完成吗？')) return;
-    try {
-        await fetch(`${API_BASE}/api/rounds/${roundId}/complete`, { method: 'POST' });
-        showToast('✅ 轮次已标记为完成', '✅');
-        loadRoundsStatus();
-    } catch (err) {
-        showToast('❌ ' + err.message, 'error');
-    }
-}
-
-async function reopenRound(roundId) {
-    if (!confirm('确定要重新开启该轮次吗？')) return;
-    try {
-        await fetch(`${API_BASE}/api/rounds/${roundId}/reopen`, { method: 'POST' });
-        showToast('✅ 轮次已重新开启', '✅');
-        loadRoundsStatus();
-    } catch (err) {
-        showToast('❌ ' + err.message, 'error');
-    }
-}
-
-// ==================== 生成晋级名单（晋级榜Tab）====================
-async function generateAdvancements() {
-    const roundId = document.getElementById('advance-round-select')?.value;
-    if (!roundId) { showToast('请先选择轮次', '⚠️'); return; }
-    
-    try {
-        const rRes = await fetch(`${API_BASE}/api/rounds/${roundId}`);
-        const round = await rRes.json();
-        
-        const gRes = await fetch(`${API_BASE}/api/groups/${roundId}`);
-        const groups = await gRes.json();
-        
-        if (groups.length === 0) throw new Error('该轮次没有分组数据');
-        
-        let total = 0;
-        for (const g of groups) {
-            const res = await fetch(`${API_BASE}/api/advancements/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ group_id: g.id, round_id: parseInt(roundId, 10) })
-            });
-            const result = await res.json();
-            if (res.ok) total += result.advanced || 0;
-        }
-        showToast(`⬆️ 晋级名单已生成！共 ${total} 人晋级`, '🎉');
-        
-        // 刷新晋级榜
-        if (typeof loadBracket === 'function') loadBracket();
-    } catch (err) {
-        showToast('❌ ' + err.message, 'error');
-    }
-}
-
-// ==================== 页面加载时初始化 ====================
-// 在分组对战Tab打开时，加载轮次状态
 const _origSwitchTab = switchTab;
 switchTab = function(tabName) {
     _origSwitchTab(tabName);
-    if (tabName === 'groups') {
-        if (typeof loadRoundsStatus === 'function') loadRoundsStatus();
-    }
     if (tabName === 'bracket') {
         if (typeof loadRoundsForBracket === 'function') loadRoundsForBracket();
         if (typeof loadRoundsForAdvance === 'function') loadRoundsForAdvance();
