@@ -1,18 +1,32 @@
 // Vercel Serverless Function 入口
+// 不使用 serverless-http，直接用 Express app 处理请求
 console.log('[Vercel] api/index.js 开始加载...');
 
 let app = null;
-let handler = null;
 let loadError = null;
 let initTime = null;
 
-// 立即响应的健康检查（不加载 Express）
+// 预加载 Express app
+try {
+    console.log('[Vercel] 开始预加载 Express app...');
+    const startTime = Date.now();
+    
+    app = require('../backend/server.js');
+    initTime = Date.now() - startTime;
+    console.log('[Vercel] Express app 加载成功，耗时:', initTime, 'ms');
+} catch (e) {
+    console.error('[Vercel] ❌ 初始化失败:', e.message);
+    console.error('[Vercel] 堆栈:', e.stack);
+    loadError = e;
+    initTime = -1;
+}
+
+// 立即响应的健康检查
 function healthCheck(req, res) {
-    console.log('[Vercel] 处理健康检查请求');
     return res.status(200).json({ 
         success: true, 
         message: 'API 函数正常工作',
-        serverReady: !!handler,
+        serverReady: !!app,
         hasError: !!loadError,
         error: loadError ? loadError.message : null,
         initTime: initTime,
@@ -21,62 +35,9 @@ function healthCheck(req, res) {
     });
 }
 
-// 预加载 Express app（在模块加载时执行，这样请求时不需要等待）
-try {
-    console.log('[Vercel] 开始预加载 Express app...');
-    const startTime = Date.now();
-    
-    app = require('../backend/server.js');
-    console.log('[Vercel] Express app 加载成功，耗时:', Date.now() - startTime, 'ms');
-    
-    const serverless = require('serverless-http');
-    handler = serverless(app);
-    console.log('[Vercel] Serverless handler 创建成功，总耗时:', Date.now() - startTime, 'ms');
-    
-    initTime = Date.now() - startTime;
-} catch (e) {
-    console.error('[Vercel] ❌ 初始化失败:', e.message);
-    console.error('[Vercel] 堆栈:', e.stack);
-    loadError = e;
-    initTime = -1;
-}
-
-// 创建一个简化的测试 handler（用于对比测试）
-let simpleHandler = null;
-try {
-    const express = require('express');
-    const simpleApp = express();
-    simpleApp.use(express.json());
-    simpleApp.post('/api/admin/login', (req, res) => {
-        res.json({ success: true, message: 'simple login ok' });
-    });
-    simpleHandler = require('serverless-http')(simpleApp);
-    console.log('[Vercel] 简化测试 handler 创建成功');
-} catch (e) {
-    console.error('[Vercel] 简化测试 handler 创建失败:', e.message);
-}
-
 module.exports = (req, res) => {
     const url = req.url || '';
-    console.log('[Vercel] 收到请求:', url);
-    
-    // 测试路由（不依赖 server.js）
-    if (url === '/api/test' || url === '/test') {
-        return res.status(200).json({ 
-            success: true, 
-            message: 'test ok', 
-            nodeVersion: process.version,
-            serverReady: !!handler
-        });
-    }
-    
-    // 简化登录测试（不依赖 server.js）
-    if (url === '/api/simple-login' || url === '/simple-login') {
-        if (simpleHandler) {
-            return simpleHandler(req, res);
-        }
-        return res.status(500).json({ success: false, error: 'simple handler not ready' });
-    }
+    console.log('[Vercel] 收到请求:', req.method, url);
     
     // 修复 Vercel 路由去掉的 /api 前缀
     if (!url.startsWith('/api/') && url !== '/api') {
@@ -98,16 +59,17 @@ module.exports = (req, res) => {
         });
     }
     
-    // 如果 handler 未准备好，返回错误
-    if (!handler) {
+    // 如果 app 未准备好，返回错误
+    if (!app) {
         return res.status(500).json({ 
             success: false, 
-            error: 'Handler 未初始化'
+            error: 'App 未初始化'
         });
     }
     
     try {
-        return handler(req, res);
+        // 直接用 Express app 处理请求
+        return app(req, res);
     } catch (e) {
         console.error('[Vercel] ❌ 请求处理失败:', e.message);
         return res.status(500).json({ 
