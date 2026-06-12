@@ -39,6 +39,29 @@ module.exports = (req, res) => {
     const url = req.url || '';
     console.log('[Vercel] 收到请求:', req.method, url);
     
+    // 测试 POST 请求体读取
+    if (url === '/api/test-post' || url === '/test-post') {
+        console.log('[Vercel] 测试 POST 请求体读取...');
+        console.log('[Vercel] req.readableEnded:', req.readableEnded);
+        console.log('[Vercel] req.headers[content-type]:', req.headers['content-type']);
+        
+        const chunks = [];
+        req.on('data', chunk => {
+            console.log('[Vercel] 收到数据块，大小:', chunk.length);
+            chunks.push(chunk);
+        });
+        req.on('end', () => {
+            console.log('[Vercel] 数据流结束');
+            const body = Buffer.concat(chunks).toString();
+            res.status(200).json({ success: true, body: body, length: body.length });
+        });
+        req.on('error', (err) => {
+            console.error('[Vercel] 数据流错误:', err.message);
+            res.status(500).json({ success: false, error: err.message });
+        });
+        return;
+    }
+    
     // 修复 Vercel 路由去掉的 /api 前缀
     if (!url.startsWith('/api/') && url !== '/api') {
         req.url = '/api' + url;
