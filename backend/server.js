@@ -243,7 +243,7 @@ app.use('/api', (req, res, next) => {
     if (req.path === '/admin/login' || req.path === '/admin/check' || req.path === '/admin/logout') {
         return next(); // 登录相关接口不需要认证
     }
-    // 公开读取接口不需要认证
+    // 公开读取接口不需要认证（同时兼容 /api 前缀）
     const publicPaths = [
         '/players',
         '/players/stats',
@@ -252,6 +252,13 @@ app.use('/api', (req, res, next) => {
         '/seasons',
         '/rounds',
         '/groups',
+        '/api/players',
+        '/api/players/stats',
+        '/api/players/count',
+        '/api/players/search',
+        '/api/seasons',
+        '/api/rounds',
+        '/api/groups',
     ];
     const isPublic = req.method === 'GET' && publicPaths.some(p => req.path.startsWith(p));
     if (isPublic) {
