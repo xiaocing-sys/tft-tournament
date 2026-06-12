@@ -31,6 +31,7 @@ function healthCheck(req, res) {
     return res.status(200).json({ 
         success: true, 
         message: 'API 函数正常工作',
+        version: 'v20250612-2',
         serverReady: !!app,
         hasError: !!loadError,
         error: loadError ? loadError.message : null,
