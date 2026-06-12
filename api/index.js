@@ -39,6 +39,17 @@ module.exports = (req, res) => {
     const url = req.url || '';
     console.log('[Vercel] 收到请求:', req.method, url);
     
+    // 调试端点
+    if (url === '/api/debug' || url === '/debug' || url.endsWith('/debug')) {
+        return res.status(200).json({
+            url: url,
+            originalUrl: req.originalUrl,
+            method: req.method,
+            path: req.path,
+            headers: req.headers
+        });
+    }
+    
     // 测试 POST 请求体读取
     if (url === '/api/test-post' || url === '/test-post') {
         console.log('[Vercel] 测试 POST 请求体读取...');
