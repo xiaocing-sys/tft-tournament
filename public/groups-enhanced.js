@@ -213,7 +213,7 @@ function renderGroupCard(g, medalColors) {
         cardBgCls = "opacity-75";
     }
 
-    return '<div id="group-card-' + g.id + '" class="bg-gradient-to-br from-[#0f0f18] to-[#161620] rounded-2xl border border-yellow-500/15 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + '">'
+    return '<div id="group-card-' + g.id + '" class="bg-gradient-to-br from-[#0f0f18] to-[#161620] rounded-2xl border border-yellow-500/15 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + ' flex-shrink-0" style="width: 380px; scroll-snap-align: start;">'
         + '<div class="group-header bg-[#161620]/80 px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-[#161620]/90 transition-colors" data-groupid="' + g.id + '">'
         + '<div class="flex items-center gap-3">'
         + '<div class="font-bold text-yellow-400 text-lg">第 ' + (g.display_number || g.group_number) + ' 组</div>'
@@ -634,7 +634,7 @@ async function loadGroups() {
         var res = await fetch(API_BASE + "/api/groups/" + roundId);
         var groups = await res.json();
         if (!Array.isArray(groups) || groups.length === 0) {
-            container.innerHTML = '<div class="text-center py-12 text-gray-300">该轮次暂无分组数据</div>';
+            container.innerHTML = '<div class="text-center py-12 text-gray-300 flex-shrink-0 w-full">该轮次暂无分组数据</div>';
             return;
         }
         groups.sort(function(a, b) { return a.group_number - b.group_number; });
@@ -658,14 +658,14 @@ async function loadGroups() {
         if (filteredGroups.length > 0) {
             html += filteredGroups.map(function(g) { return renderGroupCard(g, medalColors); }).join("");
         } else {
-            html = '<div class="text-center py-12 text-gray-300">该大区暂无分组数据</div>';
+            html = '<div class="text-center py-12 text-gray-300 flex-shrink-0 w-full">该大区暂无分组数据</div>';
         }
         container.innerHTML = html;
 
         bindGroupCardClicks();
         console.log("[loadGroups] 渲染完成，版本 20250606k");
     } catch (err) {
-        container.innerHTML = '<div class="text-center py-8 text-red-400">加载失败: ' + err.message + '</div>';
+        container.innerHTML = '<div class="text-center py-8 text-red-400 flex-shrink-0 w-full">加载失败: ' + err.message + '</div>';
     }
 }
 
