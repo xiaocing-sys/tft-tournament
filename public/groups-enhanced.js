@@ -189,7 +189,7 @@ function renderGroupCard(g, medalColors) {
                 nicknameHtml = '<span>' + (gp.game_nickname || "") + '</span>';
             }
 
-            playersHtml += '<div class="px-5 py-3 flex items-center justify-between hover:bg-[#161620]/30 transition-colors">'
+            playersHtml += '<div data-game-uid="' + (gp.game_uid || '') + '" class="px-5 py-3 flex items-center justify-between hover:bg-[#161620]/30 transition-colors">'
                 + '<div class="flex items-center gap-3">'
                 + '<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ' + circleCls + '"' + (rankClick || '') + '>' + rankDisplay + '</span>'
                 + '<div>'
@@ -760,6 +760,11 @@ async function searchPlayer() {
         }
         showSearchMsg("找到！你在【" + data.group.round_name + "】第 " + data.group.group_number + " 组（" + data.group.season_name + "）", "success");
         setTimeout(function() {
+            // 先移除旧的高亮
+            var oldHighlighted = document.querySelectorAll('.player-highlighted');
+            for (var j = 0; j < oldHighlighted.length; j++) {
+                oldHighlighted[j].classList.remove("player-highlighted");
+            }
             var cards = document.querySelectorAll('[id^="group-card-"]');
             var targetCard = null;
             for (var i = 0; i < cards.length; i++) {
@@ -773,6 +778,11 @@ async function searchPlayer() {
                 var gid = targetCard.id.replace("group-card-", "");
                 toggleGroupCard(parseInt(gid), true);
                 targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+                // 高亮搜索到的玩家行
+                var playerRow = targetCard.querySelector('[data-game-uid="' + gameUid + '"]');
+                if (playerRow) {
+                    playerRow.classList.add("player-highlighted");
+                }
                 targetCard.classList.add("ring-2", "ring-yellow-400/50");
                 setTimeout(function() { targetCard.classList.remove("ring-2", "ring-yellow-400/50"); }, 3000);
             }
