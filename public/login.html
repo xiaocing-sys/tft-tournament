@@ -197,6 +197,12 @@
     </div>
 
     <script>
+        // 自动检测 API 基础地址
+        // file:// 协议下使用 localhost:3001，http/https 下使用当前 origin
+        const API_BASE = window.location.protocol === 'file:' 
+            ? 'http://localhost:3001' 
+            : window.location.origin;
+        
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('errorMessage');
         const testApiBtn = document.getElementById('testApiBtn');
@@ -214,12 +220,16 @@
         testApiBtn.addEventListener('click', async () => {
             debugInfo.innerHTML = '';
             showDebug('🚀 开始测试 API 连接...');
-            showDebug('📡 请求地址: ' + window.location.origin + '/api/admin/login');
+            showDebug('📡 请求地址: ' + API_BASE + '/api/admin/login');
+            showDebug('💡 当前协议: ' + window.location.protocol);
+            if (window.location.protocol === 'file:') {
+                showDebug('⚠️ 检测到本地文件访问，自动切换到 localhost:3001');
+            }
             
             // 先测试健康检查
-            showDebug('📡 先测试健康检查: ' + window.location.origin + '/api/health');
+            showDebug('📡 先测试健康检查: ' + API_BASE + '/api/health');
             try {
-                const healthRes = await fetch('/api/health', { 
+                const healthRes = await fetch(API_BASE + '/api/health', { 
                     method: 'GET',
                     credentials: 'include',
                     signal: AbortSignal.timeout(5000)  // 5秒超时
@@ -238,7 +248,7 @@
             // 健康检查通过，继续测试登录 API
             showDebug('📤 发送登录请求...');
             try {
-                const res = await fetch('/api/admin/login', {
+                const res = await fetch(API_BASE + '/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -278,7 +288,7 @@
 
             try {
                 showDebug('[登录] 正在发送登录请求...');
-                const res = await fetch('/api/admin/login', {
+                const res = await fetch(API_BASE + '/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
