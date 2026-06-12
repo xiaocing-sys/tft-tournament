@@ -260,9 +260,23 @@ app.use('/api', (req, res, next) => {
     requireAdmin(req, res, next);
 });
 
-// 对所有页面应用认证（除了登录页面）
+// 对所有页面应用认证（除了登录页面和公开接口）
 app.use((req, res, next) => {
     if (req.path === '/login.html' || req.path === '/api/admin/login' || req.path === '/api/admin/check') {
+        return next();
+    }
+    // 公开读取接口不需要认证
+    const publicPaths = [
+        '/players',
+        '/players/stats',
+        '/players/count',
+        '/players/search',
+        '/seasons',
+        '/rounds',
+        '/groups',
+    ];
+    const isPublic = req.method === 'GET' && publicPaths.some(p => req.path.startsWith(p));
+    if (isPublic) {
         return next();
     }
     requireAdmin(req, res, next);
