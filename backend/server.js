@@ -83,31 +83,40 @@ let pool = null;  // 提升到模块级作用域，供 PostgreSQL schema 初始�
 if (process.env.DATABASE_URL) {
     // Netlify / 生产环境：使用 PostgreSQL
     console.log('[DB] 检测到 DATABASE_URL，准备连接 PostgreSQL...');
-    const dbStart = Date.now();
     dbMode = 'pg';
-    try {
-        const { Pool } = require('pg');
-        console.log('[DB] pg 模块加载成功，耗时:', Date.now() - dbStart, 'ms');
-        pool = new Pool({
-            connectionString: process.env.DATABASE_URL,
-            ssl: { rejectUnauthorized: false }
-        });
-        console.log('[DB] Pool 创建成功，耗时:', Date.now() - dbStart, 'ms');
-        console.log('[DB] 使用 PostgreSQL 模式（Neon）');
-    } catch (e) {
-        console.error('[DB] ❌ PostgreSQL 初始化失败:', e.message);
-        dbMode = 'error';
-        db = null;
+    
+    // 延迟加载 pg 模块，避免模块加载时耗时过长
+    let pgPool = null;
+    function getPgPool() {
+        if (!pgPool) {
+            const dbStart = Date.now();
+            try {
+                const { Pool } = require('pg');
+                console.log('[DB] pg 模块延迟加载成功，耗时:', Date.now() - dbStart, 'ms');
+                pgPool = new Pool({
+                    connectionString: process.env.DATABASE_URL,
+                    ssl: { rejectUnauthorized: false }
+                });
+                pool = pgPool;  // 同时设置模块级变量，供 schema 初始化使用
+                console.log('[DB] Pool 延迟创建成功，耗时:', Date.now() - dbStart, 'ms');
+            } catch (e) {
+                console.error('[DB] ❌ PostgreSQL 延迟初始化失败:', e.message);
+                dbMode = 'error';
+                throw e;
+            }
+        }
+        return pgPool;
     }
 
-    // 包装 pg 为类 sqlite3 接口
+    // 包装 pg 为类 sqlite3 接口（延迟初始化 Pool）
     console.log('[DB] 开始包装 pg 接口...');
     db = {
         _pgExec(sql, params, cb) {
+            const p = getPgPool();
             // 转换 ? 占位符为 $1, $2...
             let idx = 0;
             const fixedSql = sql.replace(/\?/g, () => `$${++idx}`);
-            pool.query(fixedSql, params || [], (err, res) => {
+            p.query(fixedSql, params || [], (err, res) => {
                 if (cb) cb(err, res);
             });
         },
@@ -130,9 +139,12 @@ if (process.env.DATABASE_URL) {
             });
         },
         serialize(cb) { if (cb) cb(); },
-        close(cb) { pool.end().then(() => { if (cb) cb(); }); }
+        close(cb) { 
+            const p = getPgPool(); 
+            p.end().then(() => { if (cb) cb(); }); 
+        }
     };
-    console.log('[DB] pg 接口包装完成，总耗时:', Date.now() - dbStart, 'ms');
+    console.log('[DB] pg 接口包装完成');
 } else if (process.env.VERCEL) {
     // Vercel 环境但没有 DATABASE_URL：给出明确错误
     console.error('[DB] ❌ Vercel 环境但未设置 DATABASE_URL 环境变量！');

@@ -48,6 +48,13 @@ module.exports = (req, res) => {
     const url = req.url || '';
     console.log('[Vercel] 收到请求:', url);
     
+    // 修复 Vercel 路由去掉的 /api 前缀
+    // Vercel 路由 /api/* 到本文件时，req.url 可能已被去掉 /api 前缀
+    if (!url.startsWith('/api/') && url !== '/api') {
+        req.url = '/api' + url;
+        console.log('[Vercel] 路径已修复:', req.url);
+    }
+    
     // 健康检查立即响应
     if (url === '/api/health' || url === '/health' || url.endsWith('/health')) {
         return healthCheck(req, res);
