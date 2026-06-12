@@ -41,6 +41,21 @@ try {
     initTime = -1;
 }
 
+// 创建一个简化的测试 handler（用于对比测试）
+let simpleHandler = null;
+try {
+    const express = require('express');
+    const simpleApp = express();
+    simpleApp.use(express.json());
+    simpleApp.post('/api/admin/login', (req, res) => {
+        res.json({ success: true, message: 'simple login ok' });
+    });
+    simpleHandler = require('serverless-http')(simpleApp);
+    console.log('[Vercel] 简化测试 handler 创建成功');
+} catch (e) {
+    console.error('[Vercel] 简化测试 handler 创建失败:', e.message);
+}
+
 module.exports = (req, res) => {
     const url = req.url || '';
     console.log('[Vercel] 收到请求:', url);
@@ -53,6 +68,14 @@ module.exports = (req, res) => {
             nodeVersion: process.version,
             serverReady: !!handler
         });
+    }
+    
+    // 简化登录测试（不依赖 server.js）
+    if (url === '/api/simple-login' || url === '/simple-login') {
+        if (simpleHandler) {
+            return simpleHandler(req, res);
+        }
+        return res.status(500).json({ success: false, error: 'simple handler not ready' });
     }
     
     // 修复 Vercel 路由去掉的 /api 前缀
