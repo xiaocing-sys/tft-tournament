@@ -71,9 +71,9 @@
             <div class="max-w-3xl mx-auto" style="background: rgba(15, 15, 24, 0.25); backdrop-filter: blur(4px); border-radius: 1rem; padding: 2rem;">
                 <h2 class="text-xl font-bold mb-4">📥 批量导入玩家</h2>
                 <p class="text-gray-300 text-sm mb-4">支持 CSV 格式，每行一个玩家。格式：游戏ID,昵称,大区(QQ/WeChat),联系方式</p>
-                <div class="bg-[#0f0f18] rounded-xl border border-yellow-500/10 p-4 mb-4">
-                    <textarea id="import-players-csv" rows="12" placeholder="game_uid,game_nickname,region,contact\n123456,小明,QQ,88888888\n654321,小红,WeChat,wxid123" 
-                        class="w-full bg-[#161620] border border-yellow-500/15 rounded-lg px-4 py-3 text-white text-sm font-mono placeholder-gray-500 focus:border-yellow-500 focus:outline-none resize-y"></textarea>
+                <div class="bg-[#0f0f18]/40 rounded-xl border border-yellow-500/10 p-4 mb-4">
+                    <textarea id="import-players-csv" rows="12" placeholder="game_uid,game_nickname,region,contact\n123456,小明,QQ,88888888\n654321,小红,WeChat,wxid123"
+                        class="w-full bg-[#161620]/40 border border-yellow-500/15 rounded-lg px-4 py-3 text-white text-sm font-mono placeholder-gray-400 focus:border-yellow-500 focus:outline-none resize-y"></textarea>
                 </div>
                 <div class="flex gap-3">
                     <button onclick="importPlayers()" id="import-players-btn" class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold px-6 py-2 rounded-lg text-sm">
