@@ -68,17 +68,17 @@ function filterGroupsByRegion(region) {
     if (allBtn) {
         allBtn.className = region === 'all'
             ? "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
-            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-yellow-500/50 hover:text-yellow-400";
+            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/40 text-gray-300 border border-yellow-500/15 hover:border-yellow-500/50 hover:text-yellow-400";
     }
     if (qqBtn) {
         qqBtn.className = region === 'QQ'
             ? "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30"
-            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-blue-500/50 hover:text-blue-400";
+            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/40 text-gray-300 border border-yellow-500/15 hover:border-blue-500/50 hover:text-blue-400";
     }
     if (wxBtn) {
         wxBtn.className = region === 'WeChat'
             ? "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30"
-            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-green-500/50 hover:text-green-400";
+            : "group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/40 text-gray-300 border border-yellow-500/15 hover:border-green-500/50 hover:text-green-400";
     }
 
     // 重新渲染分组
@@ -189,7 +189,7 @@ function renderGroupCard(g, medalColors) {
                 nicknameHtml = '<span>' + (gp.game_nickname || "") + '</span>';
             }
 
-            playersHtml += '<div class="px-5 py-3 flex items-center justify-between hover:bg-[#161620]/30 transition-colors">'
+            playersHtml += '<div class="px-5 py-3 flex items-center justify-between hover:bg-[#161620]/25 transition-colors">'
                 + '<div class="flex items-center gap-3">'
                 + '<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ' + circleCls + '"' + (rankClick || '') + '>' + rankDisplay + '</span>'
                 + '<div>'
@@ -213,8 +213,8 @@ function renderGroupCard(g, medalColors) {
         cardBgCls = "opacity-75";
     }
 
-    return '<div id="group-card-' + g.id + '" class="bg-gradient-to-br from-[#0f0f18] to-[#161620] rounded-2xl border border-yellow-500/15 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + '">'
-        + '<div class="group-header bg-[#161620]/80 px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-[#161620]/90 transition-colors" data-groupid="' + g.id + '">'
+    return '<div id="group-card-' + g.id + '" class="rounded-2xl border border-yellow-500/15 overflow-hidden ' + borderCls + ' transition-colors ' + cardBgCls + '" style="background: rgba(15, 15, 24, 0.35); backdrop-filter: blur(4px);">'
+        + '<div class="group-header px-5 py-4 flex items-center justify-between cursor-pointer transition-colors hover:bg-[#161620]/40" data-groupid="' + g.id + '" style="background: rgba(22, 22, 32, 0.4);">'
         + '<div class="flex items-center gap-3">'
         + '<div class="font-bold text-yellow-400 text-lg">第 ' + (g.display_number || g.group_number) + ' 组</div>'
         + regionBadge + finishedBadge
@@ -223,7 +223,7 @@ function renderGroupCard(g, medalColors) {
         + '<div class="flex items-center gap-2">'
         + qqGroupHtml
         + autoEliminateBtnHtml
-        + '<div class="text-xs text-gray-300 bg-[#0f0f18] px-3 py-1 rounded-full">' + (g.player_count || g.players.length) + '/8 人</div>'
+        + '<div class="text-xs text-gray-300 px-3 py-1 rounded-full" style="background: rgba(15, 15, 24, 0.5);">' + (g.player_count || g.players.length) + '/8 人</div>'
         + '</div>'
         + '</div>'
         + '<div id="group-players-' + g.id + '" class="divide-y divide-gray-800/50 hidden">'

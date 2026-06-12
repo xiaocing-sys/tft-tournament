@@ -412,72 +412,77 @@
         </div>
 
         <!-- Tab: 分组对战 -->
-        <div id="panel-groups" class="tab-panel hidden" style="background-image: linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('images/yone-bg.jpg'); background-size: 100% auto; background-position: top center; background-repeat: no-repeat; min-height: 85vh; border-radius: 1rem; padding: 0.75rem;">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-bold">🏆 分组对战</h2>
-                <div class="flex items-center gap-3">
-                    <select id="season-select" onchange="onSeasonChange()"
-                        class="bg-[#161620]/50 border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
-                        <option value="">全部赛季</option>
-                    </select>
-                    <select id="round-select" onchange="loadGroups()"
-                        class="bg-[#161620]/50 border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
-                    </select>
-                    <button onclick="loadGroups()" class="text-yellow-400 hover:text-yellow-300 text-sm">🔄 刷新</button>
-                </div>
-            </div>
-
-            <!-- 首次报名随机分组 -->
-            <div class="mb-6 bg-[#0f0f18]/50 rounded-xl p-4 border border-yellow-500/20">
-                <h3 class="text-lg font-semibold text-yellow-400 mb-3">🎲 首次报名随机分组</h3>
-                <p class="text-gray-300 text-sm mb-3">对首次报名参与第一轮比赛的玩家进行随机分组</p>
-                <div class="flex items-center gap-3">
-                    <button onclick="generateInitialGroups()" id="generate-initial-btn"
-                        class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg text-sm font-bold text-white">
-                        🎲 首次报名随机分组
-                    </button>
-                    <span class="text-xs text-gray-400">* 分组完成后可在下方查看对战表</span>
-                </div>
-            </div>
-
-            <!-- 大区筛选 -->
-            <div class="flex items-center gap-2 mb-4">
-                <span class="text-sm text-gray-300">大区筛选:</span>
-                <button onclick="filterGroupsByRegion('QQ')" id="group-filter-qq" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/50 text-gray-300 border border-yellow-500/15 hover:border-blue-500/50 hover:text-blue-400">QQ区</button>
-                <button onclick="filterGroupsByRegion('WeChat')" id="group-filter-wx" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/50 text-gray-300 border border-yellow-500/15 hover:border-green-500/50 hover:text-green-400">微信区</button>
-            </div>
-
-            <!-- 玩家检索 -->
-            <div class="mb-6 bg-[#0f0f18]/50 rounded-xl p-4 border border-yellow-500/20">
-                <div class="flex items-center gap-3">
-                    <div class="flex-1">
-                        <input type="text" id="player-search-input" placeholder="输入游戏ID或昵称，检索你被分到哪一组..."
-                            onkeydown="if(event.key==='Enter')searchPlayer()"
-                            class="w-full bg-[#161620]/50 border border-yellow-500/15 rounded-lg px-4 py-2 text-white placeholder-gray-400 text-sm focus:border-yellow-500 focus:outline-none">
+        <div id="panel-groups" class="tab-panel hidden" style="max-height: 85vh; overflow-y: auto; border-radius: 1rem; background: #0f0f18;">
+            <!-- 顶部背景图区域 -->
+            <div style="height: 380px; background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('images/yone-bg.jpg') top center / cover no-repeat;"></div>
+            <!-- 内容区域，上移覆盖背景图 -->
+            <div style="margin-top: -380px; padding: 0.75rem; position: relative; z-index: 1;">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold">🏆 分组对战</h2>
+                    <div class="flex items-center gap-3">
+                        <select id="season-select" onchange="onSeasonChange()"
+                            class="bg-[#161620]/40 border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
+                            <option value="">全部赛季</option>
+                        </select>
+                        <select id="round-select" onchange="loadGroups()"
+                            class="bg-[#161620]/40 border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
+                        </select>
+                        <button onclick="loadGroups()" class="text-yellow-400 hover:text-yellow-300 text-sm">🔄 刷新</button>
                     </div>
-                    <button onclick="searchPlayer()" 
-                        class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-bold text-black">
-                        🔍 检索
-                    </button>
-                    <button onclick="clearSearch()" 
-                        class="bg-[#1e1e2a] hover:bg-[#252530] px-4 py-2 rounded-lg text-sm text-white">
-                        清除
-                    </button>
                 </div>
-                <div id="search-result-msg" class="mt-2 text-sm hidden"></div>
-            </div>
 
-            <div id="groups-container" class="grid grid-cols-1 gap-6 max-w-2xl mx-auto">
-                <div class="text-center py-12 text-gray-400">
-                    暂无分组，请先使用"首次报名随机分组"
+                <!-- 首次报名随机分组 -->
+                <div class="mb-6 rounded-xl p-4 border border-yellow-500/20" style="background: rgba(15, 15, 24, 0.35); backdrop-filter: blur(4px);">
+                    <h3 class="text-lg font-semibold text-yellow-400 mb-3">🎲 首次报名随机分组</h3>
+                    <p class="text-gray-300 text-sm mb-3">对首次报名参与第一轮比赛的玩家进行随机分组</p>
+                    <div class="flex items-center gap-3">
+                        <button onclick="generateInitialGroups()" id="generate-initial-btn"
+                            class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg text-sm font-bold text-white">
+                            🎲 首次报名随机分组
+                        </button>
+                        <span class="text-xs text-gray-400">* 分组完成后可在下方查看对战表</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- 轮次状态管理 -->
-            <div class="mt-8 max-w-2xl mx-auto">
-                <h3 class="text-lg font-bold text-yellow-400 mb-3">📅 轮次管理</h3>
-                <div id="rounds-status-container" class="space-y-3">
-                    <div class="text-center text-gray-400 text-sm py-4">加载中...</div>
+                <!-- 大区筛选 -->
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-sm text-gray-300">大区筛选:</span>
+                    <button onclick="filterGroupsByRegion('QQ')" id="group-filter-qq" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/40 text-gray-300 border border-yellow-500/15 hover:border-blue-500/50 hover:text-blue-400">QQ区</button>
+                    <button onclick="filterGroupsByRegion('WeChat')" id="group-filter-wx" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/40 text-gray-300 border border-yellow-500/15 hover:border-green-500/50 hover:text-green-400">微信区</button>
+                </div>
+
+                <!-- 玩家检索 -->
+                <div class="mb-6 rounded-xl p-4 border border-yellow-500/20" style="background: rgba(15, 15, 24, 0.35); backdrop-filter: blur(4px);">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1">
+                            <input type="text" id="player-search-input" placeholder="输入游戏ID或昵称，检索你被分到哪一组..."
+                                onkeydown="if(event.key==='Enter')searchPlayer()"
+                                class="w-full bg-[#161620]/40 border border-yellow-500/15 rounded-lg px-4 py-2 text-white placeholder-gray-400 text-sm focus:border-yellow-500 focus:outline-none">
+                        </div>
+                        <button onclick="searchPlayer()" 
+                            class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-bold text-black">
+                            🔍 检索
+                        </button>
+                        <button onclick="clearSearch()" 
+                            class="bg-[#1e1e2a]/60 hover:bg-[#252530] px-4 py-2 rounded-lg text-sm text-white">
+                            清除
+                        </button>
+                    </div>
+                    <div id="search-result-msg" class="mt-2 text-sm hidden"></div>
+                </div>
+
+                <div id="groups-container" class="grid grid-cols-1 gap-6 max-w-2xl mx-auto">
+                    <div class="text-center py-12 text-gray-400">
+                        暂无分组，请先使用"首次报名随机分组"
+                    </div>
+                </div>
+
+                <!-- 轮次状态管理 -->
+                <div class="mt-8 max-w-2xl mx-auto">
+                    <h3 class="text-lg font-bold text-yellow-400 mb-3">📅 轮次管理</h3>
+                    <div id="rounds-status-container" class="space-y-3">
+                        <div class="text-center text-gray-400 text-sm py-4">加载中...</div>
+                    </div>
                 </div>
             </div>
         </div>
