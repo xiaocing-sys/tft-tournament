@@ -265,18 +265,8 @@ app.use((req, res, next) => {
     if (req.path === '/login.html' || req.path === '/api/admin/login' || req.path === '/api/admin/check') {
         return next();
     }
-    // 公开读取接口不需要认证
-    const publicPaths = [
-        '/players',
-        '/players/stats',
-        '/players/count',
-        '/players/search',
-        '/seasons',
-        '/rounds',
-        '/groups',
-    ];
-    const isPublic = req.method === 'GET' && publicPaths.some(p => req.path.startsWith(p));
-    if (isPublic) {
+    // API请求由上面的 /api 中间件处理，这里不重复检查
+    if (req.path.startsWith('/api/')) {
         return next();
     }
     requireAdmin(req, res, next);
