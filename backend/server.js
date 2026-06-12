@@ -238,10 +238,24 @@ app.get('/api/admin/check', (req, res) => {
     res.json({ success: true, loggedIn, adminIndex });
 });
 
-// 对所有管理 API 应用认证（除了登录相关）
+// 对所有管理 API 应用认证（除了登录相关和公开读取接口）
 app.use('/api', (req, res, next) => {
     if (req.path === '/admin/login' || req.path === '/admin/check' || req.path === '/admin/logout') {
         return next(); // 登录相关接口不需要认证
+    }
+    // 公开读取接口不需要认证
+    const publicPaths = [
+        '/players',
+        '/players/stats',
+        '/players/count',
+        '/players/search',
+        '/seasons',
+        '/rounds',
+        '/groups',
+    ];
+    const isPublic = req.method === 'GET' && publicPaths.some(p => req.path.startsWith(p));
+    if (isPublic) {
+        return next();
     }
     requireAdmin(req, res, next);
 });
