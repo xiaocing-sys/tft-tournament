@@ -795,8 +795,6 @@ async function searchPlayer() {
 function clearSearch() {
     var input = document.getElementById("player-search-input");
     if (input) input.value = "";
-    var msgDiv = document.getElementById("search-result-msg");
-    if (msgDiv) { msgDiv.classList.add("hidden"); msgDiv.textContent = ""; }
     var msgInner = document.getElementById("search-result-msg-inner");
     if (msgInner) { msgInner.classList.add("hidden"); msgInner.textContent = ""; }
     loadGroups();
@@ -805,25 +803,15 @@ function clearSearch() {
 // ==================== 辅助函数 ====================
 
 function showSearchMsg(text, type) {
-    // 优先显示在 groups-container 内部，防止超出高度限制
+    // 只显示在 groups-container 内部，防止超出高度限制
     var innerEl = document.getElementById("search-result-msg-inner");
     if (innerEl) {
         innerEl.classList.remove("hidden");
         innerEl.textContent = text;
-        innerEl.className = "text-sm py-2 px-3 rounded-lg ";
+        innerEl.className = "text-sm py-2 px-3 rounded-lg mb-2 ";
         if (type === "error") innerEl.className += "bg-red-900/50 text-red-300";
         else if (type === "success") innerEl.className += "bg-green-900/50 text-green-300";
         else innerEl.className += "bg-[#0f0f18]/50 text-gray-300";
-    }
-    // 同时兼容外部显示
-    var el = document.getElementById("search-result-msg");
-    if (el) {
-        el.classList.remove("hidden");
-        el.textContent = text;
-        el.className = "mt-2 text-sm py-2 px-3 rounded-lg ";
-        if (type === "error") el.className += "bg-red-900/50 text-red-300";
-        else if (type === "success") el.className += "bg-green-900/50 text-green-300";
-        else el.className += "bg-[#0f0f18]/50 text-gray-300";
     }
 }
 
