@@ -1647,7 +1647,16 @@ async function loadRoundsStatus() {
     try {
         const res = await fetch(`${API_BASE}/api/rounds`);
         const rounds = await res.json();
-        
+
+        if (!Array.isArray(rounds)) {
+            if (rounds.error === '未登录') {
+                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">🔒 请先登录管理员账号查看轮次管理</div>';
+            } else {
+                container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">加载失败：' + (rounds.error || '数据格式错误') + '</div>';
+            }
+            return;
+        }
+
         if (rounds.length === 0) {
             container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">暂无轮次数据</div>';
             return;
