@@ -91,8 +91,8 @@
         </div>
 
         <!-- Tab: 导入战绩 -->
-        <div id="panel-import-results" class="tab-panel hidden">
-            <div class="max-w-3xl mx-auto">
+        <div id="panel-import-results" class="tab-panel hidden" style="background-image: url('images/xingshen-bg.jpg'); background-size: cover; background-position: center top; background-repeat: no-repeat; min-height: 85vh; border-radius: 1rem; padding: 0.75rem;">
+            <div class="max-w-3xl mx-auto" style="background: rgba(15, 15, 24, 0.3); backdrop-filter: blur(4px); border-radius: 1rem; padding: 2rem;">
                 <h2 class="text-xl font-bold mb-4">📊 批量导入战绩</h2>
                 <p class="text-gray-300 text-sm mb-4">先选择轮次，然后粘贴 CSV 数据。格式：联系方式/游戏ID,名次(1-8)</p>
                 <div class="mb-4">
@@ -101,9 +101,9 @@
                         <option value="">-- 请选择轮次 --</option>
                     </select>
                 </div>
-                <div class="bg-[#0f0f18] rounded-xl border border-yellow-500/10 p-4 mb-4">
-                    <textarea id="import-results-csv" rows="12" placeholder="contact,placement\n88888888,1\nwxid123,3" 
-                        class="w-full bg-[#161620] border border-yellow-500/15 rounded-lg px-4 py-3 text-white text-sm font-mono placeholder-gray-500 focus:border-yellow-500 focus:outline-none resize-y"></textarea>
+                <div class="bg-[#0f0f18]/30 rounded-xl border border-yellow-500/10 p-4 mb-4">
+                    <textarea id="import-results-csv" rows="12" placeholder="contact,placement\n88888888,1\nwxid123,3"
+                        class="w-full bg-[#161620]/30 border border-yellow-500/15 rounded-lg px-4 py-3 text-white text-sm font-mono placeholder-gray-400 focus:border-yellow-500 focus:outline-none resize-y"></textarea>
                 </div>
                 <div class="flex gap-3">
                     <button onclick="importResults()" id="import-results-btn" class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold px-6 py-2 rounded-lg text-sm">
@@ -412,23 +412,23 @@
         </div>
 
         <!-- Tab: 分组对战 -->
-        <div id="panel-groups" class="tab-panel hidden">
+        <div id="panel-groups" class="tab-panel hidden" style="background-image: url('images/xingshen-bg.jpg'); background-size: cover; background-position: center top; background-repeat: no-repeat; min-height: 85vh; border-radius: 1rem; padding: 0.75rem;">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold">🏆 分组对战</h2>
                 <div class="flex items-center gap-3">
                     <select id="season-select" onchange="onSeasonChange()"
-                        class="bg-[#161620] border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
+                        class="bg-[#161620]/30 border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
                         <option value="">全部赛季</option>
                     </select>
                     <select id="round-select" onchange="loadGroups()"
-                        class="bg-[#161620] border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
+                        class="bg-[#161620]/30 border border-yellow-500/15 rounded-lg px-3 py-2 text-sm text-white">
                     </select>
                     <button onclick="loadGroups()" class="text-yellow-400 hover:text-yellow-300 text-sm">🔄 刷新</button>
                 </div>
             </div>
 
             <!-- 首次报名随机分组 -->
-            <div class="mb-6 bg-[#0f0f18] rounded-xl p-4 border border-yellow-500/20">
+            <div class="mb-6 bg-[#0f0f18]/30 rounded-xl p-4 border border-yellow-500/20">
                 <h3 class="text-lg font-semibold text-yellow-400 mb-3">🎲 首次报名随机分组</h3>
                 <p class="text-gray-300 text-sm mb-3">对首次报名参与第一轮比赛的玩家进行随机分组</p>
                 <div class="flex items-center gap-3">
@@ -444,17 +444,17 @@
             <div class="flex items-center gap-2 mb-4">
                 <span class="text-sm text-gray-300">大区筛选:</span>
                 <button onclick="filterGroupsByRegion('all')" id="group-filter-all" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">全部</button>
-                <button onclick="filterGroupsByRegion('QQ')" id="group-filter-qq" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-blue-500/50 hover:text-blue-400">QQ区</button>
-                <button onclick="filterGroupsByRegion('WeChat')" id="group-filter-wx" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620] text-gray-300 border border-yellow-500/15 hover:border-green-500/50 hover:text-green-400">微信区</button>
+                <button onclick="filterGroupsByRegion('QQ')" id="group-filter-qq" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/30 text-gray-300 border border-yellow-500/15 hover:border-blue-500/50 hover:text-blue-400">QQ区</button>
+                <button onclick="filterGroupsByRegion('WeChat')" id="group-filter-wx" class="group-filter-btn px-3 py-1 rounded-lg text-xs font-medium bg-[#161620]/30 text-gray-300 border border-yellow-500/15 hover:border-green-500/50 hover:text-green-400">微信区</button>
             </div>
 
             <!-- 玩家检索 -->
-            <div class="mb-6 bg-[#0f0f18] rounded-xl p-4 border border-yellow-500/20">
+            <div class="mb-6 bg-[#0f0f18]/30 rounded-xl p-4 border border-yellow-500/20">
                 <div class="flex items-center gap-3">
                     <div class="flex-1">
                         <input type="text" id="player-search-input" placeholder="输入游戏ID或昵称，检索你被分到哪一组..."
                             onkeydown="if(event.key==='Enter')searchPlayer()"
-                            class="w-full bg-[#161620] border border-yellow-500/15 rounded-lg px-4 py-2 text-white placeholder-gray-500 text-sm focus:border-yellow-500 focus:outline-none">
+                            class="w-full bg-[#161620]/30 border border-yellow-500/15 rounded-lg px-4 py-2 text-white placeholder-gray-400 text-sm focus:border-yellow-500 focus:outline-none">
                     </div>
                     <button onclick="searchPlayer()" 
                         class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-bold text-black">
