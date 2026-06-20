@@ -4,7 +4,9 @@
   "description": "金铲铲之战水友赛平台",
   "scripts": {
     "dev": "netlify dev",
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
@@ -15,5 +17,8 @@
   },
   "engines": {
     "node": "20.x"
+  },
+  "devDependencies": {
+    "wrangler": "^4.103.0"
   }
 }
