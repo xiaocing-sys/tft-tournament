@@ -1,22 +1,31 @@
 // Vercel Serverless Function 入口
-// 直接处理关键请求，避免 server.js 的全局中间件和 express.json() 问题
+// 核心设计：登录/健康检查等基础接口永远可用，server.js 采用懒加载
 console.log('[Vercel] api/index.js 开始加载...');
 
-let app = null;
-let loadError = null;
-let initTime = null;
+// 懒加载 Express app（避免冷启动时 server.js 初始化失败拖垮整个 Function）
+let _app = null;
+let _loadError = null;
+let _loading = false;
 
-// 预加载 Express app（仅用于非登录请求）
-try {
-    console.log('[Vercel] 开始预加载 Express app...');
-    const startTime = Date.now();
-    app = require('../backend/server.js');
-    initTime = Date.now() - startTime;
-    console.log('[Vercel] Express app 加载成功，耗时:', initTime, 'ms');
-} catch (e) {
-    console.error('[Vercel] ❌ 初始化失败:', e.message);
-    loadError = e;
-    initTime = -1;
+function getApp() {
+    if (_app) return _app;
+    if (_loadError) throw _loadError;
+    if (_loading) return null; // 正在加载中
+
+    _loading = true;
+    try {
+        console.log('[Vercel] 开始懒加载 Express app...');
+        const startTime = Date.now();
+        _app = require('../backend/server.js');
+        console.log('[Vercel] ✅ Express app 加载成功，耗时:', Date.now() - startTime, 'ms');
+        return _app;
+    } catch (e) {
+        console.error('[Vercel] ❌ Express app 加载失败:', e.message);
+        _loadError = e;
+        throw e;
+    } finally {
+        _loading = false;
+    }
 }
 
 // 管理员密码（从环境变量读取）
@@ -26,25 +35,24 @@ const ADMIN_PASSWORDS = [
     process.env.ADMIN_PASSWORD_3 || 'admin789'
 ];
 
-// 健康检查
+// 健康检查（永远可用，不依赖 server.js）
 function healthCheck(req, res) {
-    return res.status(200).json({ 
-        success: true, 
+    return res.status(200).json({
+        success: true,
         message: 'API 函数正常工作',
-        version: 'v20250612-2',
-        serverReady: !!app,
-        hasError: !!loadError,
-        error: loadError ? loadError.message : null,
-        initTime: initTime,
+        version: 'v20250620-1',
+        serverReady: !!_app,
+        hasError: !!_loadError,
+        error: _loadError ? _loadError.message : null,
         timestamp: new Date().toISOString(),
         nodeVersion: process.version
     });
 }
 
-// 直接处理登录请求（绕过 server.js 的全局中间件）
+// 直接处理登录请求（永远可用，不依赖 server.js）
 function handleLogin(req, res) {
     console.log('[Vercel] 处理登录请求');
-    
+
     // 手动读取请求体
     const chunks = [];
     req.on('data', chunk => chunks.push(chunk));
@@ -53,16 +61,16 @@ function handleLogin(req, res) {
             const bodyStr = Buffer.concat(chunks).toString();
             const body = bodyStr ? JSON.parse(bodyStr) : {};
             const password = body.password;
-            
+
             console.log('[Vercel] 密码长度:', password ? password.length : 0);
-            
+
             const idx = ADMIN_PASSWORDS.indexOf(password);
             console.log('[Vercel] 密码匹配索引:', idx);
-            
+
             if (idx !== -1) {
                 const isSecure = req.headers['x-forwarded-proto'] === 'https';
                 console.log('[Vercel] 登录成功，设置 cookie，secure:', isSecure);
-                
+
                 const cookieValue = 'admin_auth_' + idx + '_' + Date.now();
                 const cookieOptions = [
                     'admin_token=' + cookieValue,
@@ -72,7 +80,7 @@ function handleLogin(req, res) {
                     isSecure ? 'Secure' : '',
                     isSecure ? 'SameSite=None' : 'SameSite=Lax'
                 ].filter(Boolean).join('; ');
-                
+
                 res.setHeader('Set-Cookie', cookieOptions);
                 res.status(200).json({ success: true, adminIndex: idx + 1 });
             } else {
@@ -90,7 +98,7 @@ function handleLogin(req, res) {
     });
 }
 
-// 直接处理登出请求
+// 直接处理登出请求（永远可用）
 function handleLogout(req, res) {
     const isSecure = req.headers['x-forwarded-proto'] === 'https';
     const cookieOptions = [
@@ -101,12 +109,12 @@ function handleLogout(req, res) {
         isSecure ? 'Secure' : '',
         isSecure ? 'SameSite=None' : 'SameSite=Lax'
     ].filter(Boolean).join('; ');
-    
+
     res.setHeader('Set-Cookie', cookieOptions);
     res.status(200).json({ success: true });
 }
 
-// 直接处理登录状态检查
+// 直接处理登录状态检查（永远可用）
 function handleCheck(req, res) {
     const cookies = req.headers.cookie || '';
     const tokenMatch = cookies.match(/admin_token=([^;]+)/);
@@ -123,75 +131,79 @@ function handleCheck(req, res) {
 module.exports = (req, res) => {
     const url = req.url || '';
     console.log('[Vercel] 收到请求:', req.method, url);
-    
+
+    // ======== 永远可用的接口（不依赖 server.js）========
+
     // 健康检查
     if (url === '/api/health' || url.endsWith('/health')) {
         return healthCheck(req, res);
     }
-    
-    // 登录相关请求直接处理（绕过 server.js）
+
+    // 登录
     if (url === '/api/admin/login') {
         if (req.method === 'POST') {
             return handleLogin(req, res);
         }
         return res.status(405).json({ success: false, error: '方法不允许' });
     }
-    
+
+    // 登出
     if (url === '/api/admin/logout') {
         if (req.method === 'POST') {
             return handleLogout(req, res);
         }
         return res.status(405).json({ success: false, error: '方法不允许' });
     }
-    
+
+    // 登录状态检查
     if (url === '/api/admin/check') {
         if (req.method === 'GET') {
             return handleCheck(req, res);
         }
         return res.status(405).json({ success: false, error: '方法不允许' });
     }
-    
-    // 其他请求交给 Express app 处理
-    if (loadError) {
-        return res.status(500).json({ 
-            success: false, 
-            error: 'Server 初始化失败: ' + loadError.message
-        });
-    }
-    
-    if (!app) {
-        return res.status(500).json({ 
-            success: false, 
-            error: 'App 未初始化'
-        });
-    }
-    
-    // 公开读取接口不需要认证，设置虚拟cookie绕过server.js的auth中间件
-    const publicPaths = [
-        '/api/players',
-        '/api/players/stats',
-        '/api/players/count',
-        '/api/players/search',
-        '/api/seasons',
-        '/api/rounds',
-        '/api/groups',
-    ];
-    const isPublicApi = req.method === 'GET' && publicPaths.some(p => url.startsWith(p));
-    if (isPublicApi) {
-        // 追加虚拟admin token到cookie，让server.js的requireAdmin通过
-        const existingCookie = req.headers.cookie || '';
-        req.headers.cookie = existingCookie + (existingCookie ? '; ' : '') + 'admin_token=admin_auth_public_0';
-    }
-    
+
+    // ======== 需要 Express app 的接口（懒加载 server.js）========
+
     try {
-        return app(req, res);
+        const expressApp = getApp();
+
+        // 如果正在加载中（并发请求），返回临时响应
+        if (!expressApp) {
+            return res.status(503).json({
+                success: false,
+                error: '服务器正在初始化，请稍后重试'
+            });
+        }
+
+        // 公开读取接口不需要认证，设置虚拟cookie绕过server.js的auth中间件
+        const publicPaths = [
+            '/api/players',
+            '/api/players/stats',
+            '/api/players/count',
+            '/api/players/search',
+            '/api/seasons',
+            '/api/rounds',
+            '/api/groups',
+        ];
+        const isPublicApi = req.method === 'GET' && publicPaths.some(p => url.startsWith(p));
+        if (isPublicApi) {
+            const existingCookie = req.headers.cookie || '';
+            req.headers.cookie = existingCookie + (existingCookie ? '; ' : '') + 'admin_token=admin_auth_public_0';
+        }
+
+        return expressApp(req, res);
     } catch (e) {
         console.error('[Vercel] ❌ 请求处理失败:', e.message);
-        return res.status(500).json({ 
-            success: false, 
+        // 如果是首次加载失败，给出更明确的错误信息
+        if (!_app && !_loadError) {
+            _loadError = e;
+        }
+        return res.status(500).json({
+            success: false,
             error: 'Serverless Function 错误: ' + e.message
         });
     }
 };
 
-console.log('[Vercel] api/index.js 加载完成');
+console.log('[Vercel] ✅ api/index.js 加载完成（server.js 已改为懒加载）');
